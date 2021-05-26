@@ -6,6 +6,10 @@ import torch_geometric.transforms as T
 from torch_geometric.data import DataLoader
 from torch_geometric.nn import PointConv, fps, radius, global_max_pool
 from torch_geometric.nn import knn_interpolate
+import nibabel as nib
+from pathlib import Path
+import utils
+import numpy as np
 
 class SAModule(torch.nn.Module):
     def __init__(self, ratio, r, nn):
@@ -90,4 +94,20 @@ class SegNet(torch.nn.Module):
         x = F.dropout(x, p=0.5, training=self.training)
         x = self.lin3(x)
         return F.log_softmax(x, dim=-1)
-        
+
+
+
+if __name__ == '__main__':
+    data_path = Path("/workspaces/project_med/project/data")
+    image = utils.min_max_normalize(nib.load(data_path / 'A003_orig.nii').get_fdata())
+    image_aneursysm = nib.load(data_path / 'A003_masks.nii').get_fdata()
+    mask =utils.intensity_segmentation(image,0.34)
+    filtered= np.multiply(image,mask)
+    data = utils.segmented_image_to_graph(filtered,image_aneursysm)
+    data.batch=torch.zeros(data.y.shape,dtype = torch.int64)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = SegNet(2).to(device)
+
+    y=model(data)
+    print(torch.exp(y))
+
