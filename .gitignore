@@ -3,6 +3,7 @@
 .devcontainer/
 data/ModelNet10
 data/ShapeNet
+data/
 .env
 env/
 daten/

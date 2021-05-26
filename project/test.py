@@ -62,7 +62,7 @@ def test(loader):
 root_path = "/workspaces/project_med/project/data"
 dataset= NiftiDataset(root_path)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = SegNet(1).to(device)
+model = SegNet(2).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
 
