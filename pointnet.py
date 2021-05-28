@@ -93,9 +93,7 @@ class SegNet(torch.nn.Module):
         x = self.lin2(x)
         x = F.dropout(x, p=0.5, training=self.training)
         x = self.lin3(x)
-        return F.log_softmax(x, dim=-1)
-
-
+        return torch.squeeze(F.sigmoid(x))
 
 if __name__ == '__main__':
     data_path = Path("/workspaces/project_med/project/data")
@@ -106,7 +104,7 @@ if __name__ == '__main__':
     data = utils.segmented_image_to_graph(filtered,image_aneursysm)
     data.batch=torch.zeros(data.y.shape,dtype = torch.int64)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = SegNet(2).to(device)
+    model = SegNet(1).to(device)
 
     y=model(data)
     print(torch.exp(y))

@@ -7,7 +7,7 @@ import torch_geometric.transforms as T
 from torch_geometric.data import DataLoader
 from torch_geometric.nn import knn_interpolate
 from torch_geometric.utils import intersection_and_union as i_and_u
-
+import numpy as np
 from pointnet_plus_plus import SAModule, GlobalSAModule, MLP
 
 category = 'Airplane'  # Pass in `None` to train on all categories.
@@ -102,7 +102,6 @@ def train():
             total_loss = correct_nodes = total_nodes = 0
 
 
-@torch.no_grad()
 def test(loader):
     model.eval()
 
@@ -124,7 +123,6 @@ def test(loader):
     # Compute mean IoU.
     ious = [torch.stack(iou).mean(0).mean(0) for iou in ious]
     return torch.tensor(ious).mean().item()
-
 
 for epoch in range(1, 31):
     train()

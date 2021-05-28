@@ -9,24 +9,26 @@ import nibabel as nib
 import numpy as np
 
 class NiftiDataset(Dataset):
-    def __init__(self, root,transform=None, pre_transform=None):
-        super(NiftiDataset, self).__init__(root, transform, pre_transform)
-   
+    def __init__(self, root,transform=None, pre_transform=None,forceprocessing =False):
+        self.forceprocessing = forceprocessing
 
+        super(NiftiDataset, self).__init__(root, transform, pre_transform)
+        
     @property
     def processed_file_names(self):
-        if os.path.exists(self.processed_dir):
-            return os.listdir(self.processed_dir)
+        if os.path.exists("data/") and not self.forceprocessing:
+            return os.listdir("data/")
         else:
+
             return []
     @property
     def raw_file_names(self):
         return os.listdir(self.root)
 
     
-    # @property
-    # def download(self):
-    #     pass
+    @property
+    def processed_dir(self) -> str:
+        return "data/processed"
     def process(self):
         self.cases = set()
      
@@ -36,8 +38,9 @@ class NiftiDataset(Dataset):
                 #g = filename.split('_')[0]
                 #cases.setdefault(g, []).append(filename)
         for idx,case in enumerate(self.cases):
-            torch.save(self.file_to_data(case), osp.join(self.processed_dir, "data_{}.pt".format(idx)))
-            
+            torch.save(self.file_to_data(case), osp.join("data/", "data_{}.pt".format(idx)))
+        self.forceprocessing=False    
+
     def file_to_data(self,case):
         image = utils.min_max_normalize(nib.load(self.root+ "/"+case+'_orig.nii').get_fdata())
         image_aneursysm = nib.load(self.root + "/"+case+'_masks.nii').get_fdata()

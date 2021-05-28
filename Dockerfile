@@ -19,7 +19,7 @@ RUN pip install torch-geometric
 # copy the content of the local src directory to the working directory
 #COPY src/ .
 
-ENV PYTHONPATH /project
+ENV PYTHONPATH ="/project"
 
 # command to run on container start
 CMD [ "python"]
