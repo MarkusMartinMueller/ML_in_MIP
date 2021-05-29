@@ -95,7 +95,7 @@ def test(model : SegNet,loader :dataloader,device :torch.device):
     accuracies=[]
     for data in loader:
         data = data.to(device)
-        pred = model(data).argmax(dim=1)
+        pred = model(data)
         correct_nodes = torch.round(pred).eq(data.y).sum().item()
         total_nodes =data.num_nodes
         accuracies.append(correct_nodes/total_nodes)
@@ -105,6 +105,6 @@ def graph_to_image(graph : Data):
     image =np.zeros(256,256,220)
     graph.pos[:,:2]=graph.pos[:,:2]*244
     graph.pos[:,2:]=graph.pos[:,2:]*220
-    image[tuple(np.array(graph.pos).T)]=1
+    image[tuple(np.array(graph.pos).T)]=graph.x
     return image
 

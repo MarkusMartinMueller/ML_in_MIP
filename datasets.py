@@ -9,15 +9,15 @@ import nibabel as nib
 import numpy as np
 
 class NiftiDataset(Dataset):
-    def __init__(self, root,transform=None, pre_transform=None,forceprocessing =False):
+    def __init__(self, root,save_dir,transform=None, pre_transform=None,forceprocessing =False):
         self.forceprocessing = forceprocessing
-
+        self.save_dir =save_dir
         super(NiftiDataset, self).__init__(root, transform, pre_transform)
         
     @property
     def processed_file_names(self):
-        if os.path.exists("data/") and not self.forceprocessing:
-            return os.listdir("data/")
+        if os.path.exists(self.processed_dir) and not self.forceprocessing:
+            return ([file for file in os.listdir(self.processed_dir) if file.startswith("data")])
         else:
 
             return []
@@ -28,7 +28,7 @@ class NiftiDataset(Dataset):
     
     @property
     def processed_dir(self) -> str:
-        return "data/processed"
+        return self.save_dir
     def process(self):
         self.cases = set()
      
@@ -38,7 +38,7 @@ class NiftiDataset(Dataset):
                 #g = filename.split('_')[0]
                 #cases.setdefault(g, []).append(filename)
         for idx,case in enumerate(self.cases):
-            torch.save(self.file_to_data(case), osp.join("data/", "data_{}.pt".format(idx)))
+            torch.save(self.file_to_data(case), osp.join(self.save_dir, "data_{}.pt".format(idx)))
         self.forceprocessing=False    
 
     def file_to_data(self,case):
