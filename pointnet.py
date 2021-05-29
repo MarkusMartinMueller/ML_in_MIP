@@ -93,7 +93,8 @@ class SegNet(torch.nn.Module):
         x = self.lin2(x)
         x = F.dropout(x, p=0.5, training=self.training)
         x = self.lin3(x)
-        return torch.squeeze(F.sigmoid(x))
+        
+        return torch.squeeze(torch.sigmoid(x))
 
 if __name__ == '__main__':
     data_path = Path("/workspaces/project_med/project/data")
