@@ -66,6 +66,7 @@ class FPModule(torch.nn.Module):
 class SegNet(torch.nn.Module):
     def __init__(self, num_classes):
         super(SegNet, self).__init__()
+        self.get_seg=False
         self.sa1_module = SAModule(0.2, 0.2, MLP([1 + 3, 64, 64, 128]))
         self.sa2_module = SAModule(0.25, 0.4, MLP([128 + 3, 128, 128, 256]))
         self.sa3_module = GlobalSAModule(MLP([256 + 3, 256, 512, 1024]))
@@ -93,8 +94,14 @@ class SegNet(torch.nn.Module):
         x = self.lin2(x)
         x = F.dropout(x, p=0.5, training=self.training)
         x = self.lin3(x)
-        
-        return torch.squeeze(torch.sigmoid(x))
+        if self.get_seg:
+            return Data(x=torch.squeeze(torch.sigmoid(x)),pos=torch.squeeze(pos))
+        else:
+            return torch.squeeze(torch.sigmoid(x))
+    
+    def set_seg(self):
+        self.get_seg= True
+
 
 if __name__ == '__main__':
     data_path = Path("/workspaces/project_med/project/data")
