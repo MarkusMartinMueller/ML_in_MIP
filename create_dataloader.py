@@ -6,11 +6,12 @@
 
 import os
 from pathlib import Path
-
+import torch
 import numpy as np
 from ipywidgets import widgets
-from monai.data import GridPatchDataset, DataLoader, PatchIter
+from monai.data import ArrayDataset,GridPatchDataset, DataLoader, PatchIter
 from monai.transforms import (
+    Compose,
     AddChanneld,
     LoadImage,
     LoadImaged,
@@ -32,7 +33,7 @@ from torch.utils.data import Dataset, DataLoader
 # In[ ]:
 
 
-def prepare_dataset(data_path):
+def prepare_dataset(data_dir):
     """
     data_path, string containing path to the training data
     
@@ -45,7 +46,7 @@ def prepare_dataset(data_path):
     
     
     
-    data_dir = os.path.join(root_dir, data_path)
+    
     
     train_images = sorted(
     glob.glob(os.path.join(data_dir,"*orig.nii.gz")))
@@ -63,11 +64,7 @@ def prepare_dataset(data_path):
     
 
 
-# In[ ]:
 
-
-def img_seg_iter(x):
-        return (zip(patch_iter(x[0]), patch_iter(x[1])),)
 
 
 # In[ ]:
@@ -108,6 +105,9 @@ def create_dataloader(data_path,batch_size=1,num_workers=0,pin_memory=0):
 
     ds_np = ArrayDataset(train_img,seg = train_mask)
     patch_iter = PatchIter(patch_size=(28, 28, 28), start_pos=(0, 0, 0),mode='wrap')
+    
+    def img_seg_iter(x):
+        return (zip(patch_iter(x[0]), patch_iter(x[1])),)
 
     ds = GridPatchDataset(ds_np, img_seg_iter, with_coordinates=False)
 
