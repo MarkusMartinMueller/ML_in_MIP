@@ -77,13 +77,15 @@ def create_dataloader(data_path,batch_size=1,num_workers=0,pin_memory=0):
     
     return:
             dataloader with images and masks 
-            images is a list with #batch_size tensor images (batch,channel,patch_height,patch_width,patch_depth), #batch_size tensor with shapes
-            mask is a list with #batch_size tensor mask (batch,channel,patch_height,patch_width,patch_depth), #batch_size tensor with shapes
+            images is a list with number of batch_size (e.g. 2) tensor images (batch,channel,patch_height,patch_width,patch_depth), #batch_size tensor with shapes(e.g. batch 2, patch shapes = (28,28,28))
+            mask is a list with number of batch_size tensor mask (batch,channel,patch_height,patch_width,patch_depth), #batch_size tensor with shapes
     
     """
     
     train_images, train_labels,data_dicts = prepare_dataset(data_path)
     
+    
+    ## transforming the data dictionray with the composed transforms
     transform = Compose([LoadImaged(keys=["image", "label"]),
     AddChanneld(keys=["image", "label"]),
     ScaleIntensityd(keys=["image"], minv=0.0, maxv=1.0),
@@ -93,18 +95,18 @@ def create_dataloader(data_path,batch_size=1,num_workers=0,pin_memory=0):
     ])(data_dicts)
     
     
+    
+    
     train_img = []
     train_mask = []
     for i in range(len(transform)):
         train_img.append(transform[i]['image'])
         train_mask.append(transform[i]['label'])
-        
-    from monai.data import GridPatchDataset, DataLoader, PatchIter
 
 
 
     ds_np = ArrayDataset(train_img,seg = train_mask)
-    patch_iter = PatchIter(patch_size=(28, 28, 28), start_pos=(0, 0, 0),mode='wrap')
+    patch_iter = PatchIter(patch_size=(32, 32, 32), start_pos=(0, 0, 0),mode='wrap')
     
     def img_seg_iter(x):
         return (zip(patch_iter(x[0]), patch_iter(x[1])),)
