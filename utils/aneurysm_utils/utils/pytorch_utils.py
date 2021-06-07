@@ -23,8 +23,12 @@ def predict(model, images: list, cuda=False, apply_softmax=True):
 
         # Backward pass.
         model.zero_grad()
-        output_class = output.max(1)[1].data[0].item()
-        output_probability = output.max(1)[0].data[0].item()
+        try:
+            output_class = output.max(1)[1].data[0].item()
+            output_probability = output.max(1)[0].data[0].item()
+        except ValueError:
+            output_class = output.max(1)[1].data[0].numpy()
+            output_probability = output.max(1)[0].data[0].numpy()
         predictions.append((output_class, output_probability))
     return predictions
 
@@ -48,7 +52,7 @@ def count_parameters(model):
     return total_param
 
 
-class PPMIDataset(Dataset):
+class AneurysmDataset(Dataset):
     """
     PyTorch dataset that consists of MRI images and labels.
     Args:
@@ -66,9 +70,16 @@ class PPMIDataset(Dataset):
         z_factor=None,
         dtype=np.float32,
         num_classes=2,
+        segmentation=False
     ):
         self.mri_imgs = np.copy(mri_imgs)
-        self.labels =  np.copy(labels) #torch.LongTensor(labels)
+        self.segmentation = segmentation
+        if self.segmentation:
+            self.labels = np.copy(labels)
+        else:
+            pass
+        self.labels = torch.LongTensor(labels)
+       
         self.transform = transform
         self.target_transform = target_transform
         self.z_factor = z_factor
@@ -79,7 +90,12 @@ class PPMIDataset(Dataset):
         return len(self.mri_imgs)
 
     def __getitem__(self, idx):
-        label = self.labels[idx].astype(np.float32)
+        if self.segmentation:
+            label = np.expand_dims(self.labels[idx], axis=0).astype(np.float32)
+        else:
+            pass
+        
+        label = self.labels[idx]
         image = np.expand_dims(self.mri_imgs[idx], axis=0).astype(np.float32)
         if self.transform:
             image = self.transform(image)

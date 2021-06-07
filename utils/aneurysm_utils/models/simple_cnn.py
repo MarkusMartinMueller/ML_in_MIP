@@ -2,6 +2,7 @@
 # 定义卷积神经网络
 import torch.nn as nn
 import torch.nn.functional as F
+import torch
 
 #  根据网络层的不同定义不同的初始化方式
 
@@ -80,3 +81,32 @@ def weight_init_3d(m):
     elif isinstance(m, nn.BatchNorm3d):
         nn.init.constant_(m.weight, 1)
         nn.init.constant_(m.bias, 0)
+
+
+class SimpleCNN2D(nn.Module):
+    def __init__(self, in_channels=1, out_channels=1):
+        super().__init__()
+
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            nn.Sigmoid(),
+        )
+
+    def __call__(self, x):
+        x = self.conv1(x)
+        print(x.size)
+        return torch.squeeze(x)
+
+
+class SimpleCNN3D(nn.Module):
+    def __init__(self, in_channels=1, out_channels=2):
+        super().__init__()
+
+        self.conv1 = nn.Sequential(
+            nn.Conv3d(in_channels, out_channels, kernel_size=3, stride=1, padding=1),
+            #nn.Sigmoid(),
+        )
+
+    def __call__(self, x):
+        x = self.conv1(x)
+        return x

@@ -11,6 +11,7 @@ import pandas as pd
 import matplotlib.animation
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
+
 # -
 
 import torch
@@ -29,14 +30,21 @@ from aneurysm_utils.environment import Environment
 
 from sklearn import metrics as sk_metrics
 
-def evaluate_model(y_true: list, y_pred: list, prefix: str = None) -> dict:
+
+def evaluate_model(
+    y_true: list, y_pred: list, segmentation: bool = None, prefix: str = None
+) -> dict:
     metrics = {}
-    
+
+    if segmentation:
+        y_true = np.concatenate(y_true).ravel()
+        y_pred = np.concatenate(y_pred).ravel()
+
     if not prefix:
         prefix = ""
     else:
         prefix = prefix + "_"
-        
+
     metrics[prefix + "accuracy"] = sk_metrics.accuracy_score(y_true, y_pred)
     metrics[prefix + "bal_acc"] = sk_metrics.balanced_accuracy_score(y_true, y_pred)
     try:
@@ -46,12 +54,14 @@ def evaluate_model(y_true: list, y_pred: list, prefix: str = None) -> dict:
         metrics[prefix + "sen"] = sk_metrics.recall_score(y_true, y_pred, pos_label=1)
         metrics[prefix + "f1"] = sk_metrics.f1_score(y_true, y_pred)
     except Exception:
-        print("precision/recall/spec/sen/f1 are not supported for non-binary classification.")
-    
-    print("Accuracy (" + prefix + "): " +  str(metrics[prefix + "accuracy"]))
-    print("Balanced Accuracy (" + prefix + "): " +  str(metrics[prefix + "bal_acc"]))
+        print(
+            "precision/recall/spec/sen/f1 are not supported for non-binary classification."
+        )
+
+    print("Accuracy (" + prefix + "): " + str(metrics[prefix + "accuracy"]))
+    print("Balanced Accuracy (" + prefix + "): " + str(metrics[prefix + "bal_acc"]))
     print(sk_metrics.classification_report(y_true, y_pred))
-    
+
     return metrics
 
 
@@ -66,6 +76,7 @@ red_to_alpha_cmap = np.zeros((256, 4))
 red_to_alpha_cmap[:, 0] = 0.8
 red_to_alpha_cmap[:, -1] = np.linspace(1, 0, 256)  # cmap.N-20)  # alpha values
 red_to_alpha_cmap = mpl.colors.ListedColormap(red_to_alpha_cmap)
+
 
 def animate_slices(
     struct_arr,
@@ -140,6 +151,7 @@ def animate_slices(
         fig, update, frames=frames, interval=interval, blit=True
     )
 
+
 def plot_slices(
     struct_arr,
     num_slices=7,
@@ -153,7 +165,7 @@ def plot_slices(
 ):
     """
     Plot equally spaced slices of a 3D image (and an overlay) along every axis
-    
+
     Args:
         struct_arr (3D array or tensor): The 3D array to plot (usually from a nifti file).
         num_slices (int): The number of slices to plot for each dimension.
@@ -161,7 +173,7 @@ def plot_slices(
         vmin (float): Same as in matplotlib.imshow. If `None`, take the global minimum of `struct_arr`.
         vmax (float): Same as in matplotlib.imshow. If `None`, take the global maximum of `struct_arr`.
         overlay (3D array or tensor): The 3D array to plot as an overlay on top of the image. Same size as `struct_arr`.
-        overlay_cmap: The colomap for the overlay (default: `alpha_to_red_cmap`). 
+        overlay_cmap: The colomap for the overlay (default: `alpha_to_red_cmap`).
         overlay_vmin (float): Same as in matplotlib.imshow. If `None`, take the global minimum of `overlay`.
         overlay_vmax (float): Same as in matplotlib.imshow. If `None`, take the global maximum of `overlay`.
     """
@@ -211,6 +223,7 @@ def plot_slices(
                     interpolation=None,
                 )
 
+
 # +
 # ---------------------------- Interpretation methods --------------------------------
 # From: https://github.com/jrieke/cnn-interpretability
@@ -226,27 +239,27 @@ def sensitivity_analysis(
     verbose=False,
 ):
     """
-    Perform sensitivity analysis (via backpropagation; Simonyan et al. 2014) to determine the relevance of each image pixel 
+    Perform sensitivity analysis (via backpropagation; Simonyan et al. 2014) to determine the relevance of each image pixel
     for the classification decision. Return a relevance heatmap over the input image.
-    
+
     Args:
-        model (torch.nn.Module): The pytorch model. Should be set to eval mode. 
+        model (torch.nn.Module): The pytorch model. Should be set to eval mode.
         image_tensor (torch.Tensor or numpy.ndarray): The image to run through the `model` (channels first!).
-        target_class (int): The target output class for which to produce the heatmap. 
+        target_class (int): The target output class for which to produce the heatmap.
                       If `None` (default), use the most likely class from the `model`s output.
-        postprocess (None or 'abs' or 'square'): The method to postprocess the heatmap with. `'abs'` is used 
+        postprocess (None or 'abs' or 'square'): The method to postprocess the heatmap with. `'abs'` is used
                                                  in Simonyan et al. 2014, `'square'` is used in Montavon et al. 2018.
-        apply_softmax (boolean): Whether to apply the softmax function to the output. Useful for models that are trained 
+        apply_softmax (boolean): Whether to apply the softmax function to the output. Useful for models that are trained
                                  with `torch.nn.CrossEntropyLoss` and do not apply softmax themselves.
-        appl (None or 'binary' or 'categorical'): Whether the output format of the `model` is binary 
-                                                         (i.e. one output neuron with sigmoid activation) or categorical 
-                                                         (i.e. multiple output neurons with softmax activation). 
-                                                         If `None` (default), infer from the shape of the output. 
+        appl (None or 'binary' or 'categorical'): Whether the output format of the `model` is binary
+                                                         (i.e. one output neuron with sigmoid activation) or categorical
+                                                         (i.e. multiple output neurons with softmax activation).
+                                                         If `None` (default), infer from the shape of the output.
         cuda (boolean): Whether to run the computation on a cuda device.
         verbose (boolean): Whether to display additional output during the computation.
-        
+
     Returns:
-        A numpy array of the same shape as image_tensor, indicating the relevance of each image pixel. 
+        A numpy array of the same shape as image_tensor, indicating the relevance of each image pixel.
     """
     if postprocess not in [None, "abs", "square"]:
         raise ValueError("postprocess must be None, 'abs' or 'square'")
@@ -302,26 +315,26 @@ def guided_backprop(
     verbose=False,
 ):
     """
-    Perform guided backpropagation (Springenberg et al. 2015) to determine the relevance of each image pixel 
+    Perform guided backpropagation (Springenberg et al. 2015) to determine the relevance of each image pixel
     for the classification decision. Return a relevance heatmap over the input image.
-    
-    Note: The `model` MUST implement any ReLU layers via `torch.nn.ReLU` (i.e. it needs to have an instance 
+
+    Note: The `model` MUST implement any ReLU layers via `torch.nn.ReLU` (i.e. it needs to have an instance
     of torch.nn.ReLU as an attribute). Models that use `torch.nn.functional.relu` instead will not work properly!
-    
+
     Args:
-        model (torch.nn.Module): The pytorch model. Should be set to eval mode. 
+        model (torch.nn.Module): The pytorch model. Should be set to eval mode.
         image_tensor (torch.Tensor or numpy.ndarray): The image to run through the `model` (channels first!).
-        target (int): The target output class for which to produce the heatmap. 
+        target (int): The target output class for which to produce the heatmap.
                       If `None` (default), use the most likely class from the `model`s output.
-        postprocess (None or 'abs' or 'square'): The method to postprocess the heatmap with. `'abs'` is used 
+        postprocess (None or 'abs' or 'square'): The method to postprocess the heatmap with. `'abs'` is used
                                                  in Simonyan et al. 2013, `'square'` is used in Montavon et al. 2018.
-        apply_softmax (boolean): Whether to apply the softmax function to the output. Useful for models that are trained 
+        apply_softmax (boolean): Whether to apply the softmax function to the output. Useful for models that are trained
                                  with `torch.nn.CrossEntropyLoss` and do not apply softmax themselves.
         cuda (boolean): Whether to run the computation on a cuda device.
         verbose (boolean): Whether to display additional output during the computation.
-        
+
     Returns:
-        A numpy array of the same shape as image_tensor, indicating the relevance of each image pixel. 
+        A numpy array of the same shape as image_tensor, indicating the relevance of each image pixel.
     """
     layer_to_hook = nn.ReLU
 
@@ -382,31 +395,31 @@ def occlusion(
     verbose=False,
 ):
     """
-    Perform occlusion (Zeiler & Fergus 2014) to determine the relevance of each image pixel 
+    Perform occlusion (Zeiler & Fergus 2014) to determine the relevance of each image pixel
     for the classification decision. Return a relevance heatmap over the input image.
-    
-    Note: The current implementation can only handle 2D and 3D images. 
-    It usually infers the correct image dimensions, otherwise they can be set via the `three_d` parameter. 
-    
+
+    Note: The current implementation can only handle 2D and 3D images.
+    It usually infers the correct image dimensions, otherwise they can be set via the `three_d` parameter.
+
     Args:
-        model (torch.nn.Module): The pytorch model. Should be set to eval mode. 
+        model (torch.nn.Module): The pytorch model. Should be set to eval mode.
         image_tensor (torch.Tensor or numpy.ndarray): The image to run through the `model` (channels first!).
-        target_class (int): The target output class for which to produce the heatmap. 
+        target_class (int): The target output class for which to produce the heatmap.
                       If `None` (default), use the most likely class from the `model`s output.
         size (int): The size of the occlusion patch.
         stride (int): The stride with which to move the occlusion patch across the image.
         occlusion_value (int): The value of the occlusion patch.
-        apply_softmax (boolean): Whether to apply the softmax function to the output. Useful for models that are trained 
+        apply_softmax (boolean): Whether to apply the softmax function to the output. Useful for models that are trained
                                  with `torch.nn.CrossEntropyLoss` and do not apply softmax themselves.
-        three_d (boolean): Whether the image is 3 dimensional (e.g. MRI scans). 
-                           If `None` (default), infer from the shape of `image_tensor`. 
-        resize (boolean): The output from the occlusion method is usually smaller than the original `image_tensor`. 
-                          If `True` (default), the output will be resized to fit the original shape (without interpolation). 
+        three_d (boolean): Whether the image is 3 dimensional (e.g. MRI scans).
+                           If `None` (default), infer from the shape of `image_tensor`.
+        resize (boolean): The output from the occlusion method is usually smaller than the original `image_tensor`.
+                          If `True` (default), the output will be resized to fit the original shape (without interpolation).
         cuda (boolean): Whether to run the computation on a cuda device.
         verbose (boolean): Whether to display additional output during the computation.
-        
+
     Returns:
-        A numpy array of the same shape as image_tensor, indicating the relevance of each image pixel. 
+        A numpy array of the same shape as image_tensor, indicating the relevance of each image pixel.
     """
 
     # TODO: Try to make this better, i.e. generalize the method to any kind of input.
@@ -521,22 +534,22 @@ def area_occlusion(
     verbose=False,
 ):
     """
-    Perform brain area occlusion to determine the relevance of each image pixel 
+    Perform brain area occlusion to determine the relevance of each image pixel
     for the classification decision. Return a relevance heatmap over the input image.
-    
+
     Args:
-        model (torch.nn.Module): The pytorch model. Should be set to eval mode. 
+        model (torch.nn.Module): The pytorch model. Should be set to eval mode.
         image_tensor (torch.Tensor or numpy.ndarray): The image to run through the `model` (channels first!).
-        target_class (int): The target output class for which to produce the heatmap. 
+        target_class (int): The target output class for which to produce the heatmap.
                       If `None` (default), use the most likely class from the `model`s output.
         occlusion_value (int): The value of the occlusion patch.
-        apply_softmax (boolean): Whether to apply the softmax function to the output. Useful for models that are trained 
+        apply_softmax (boolean): Whether to apply the softmax function to the output. Useful for models that are trained
                                  with `torch.nn.CrossEntropyLoss` and do not apply softmax themselves.
         cuda (boolean): Whether to run the computation on a cuda device.
         verbose (boolean): Whether to display additional output during the computation.
-        
+
     Returns:
-        A numpy array of the same shape as image_tensor, indicating the relevance of each image pixel. 
+        A numpy array of the same shape as image_tensor, indicating the relevance of each image pixel.
     """
 
     image_tensor = torch.Tensor(image_tensor)  # convert numpy or list to tensor

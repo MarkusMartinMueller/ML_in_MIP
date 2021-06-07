@@ -11,19 +11,32 @@ import tqdm
 from sklearn import preprocessing
 from sklearn.model_selection import train_test_split
 from tabulate import tabulate
+from monai.transforms import Spacing
 
 import aneurysm_utils
 
+DF_DICT = {"mask": "Path Mask", "vessel": "Path Vessel", "rupture risk": "Rupture Status"}
 
-def load_nifti(file_path, mask=None, z_factor=None, remove_nan=True):
+def load_nifti(file_path, mask=None, z_factor=None, remove_nan=True, resample_dim=(1.5, 1.5, 1.5)):
     """Load a 3D array from a NIFTI file."""
-    struct_arr = nib.load(file_path).get_data().astype("<f4")
+    nifti = nib.load(file_path)
+    struct_arr = nifti.get_data().astype("<f4")
+    #print(struct_arr.shape)
+    #values, count = np.unique(struct_arr, return_counts=True)
+    #print("Original", count, (count[1]/count[0]))
+
+    if resample_dim is not None:
+        struct_arr = np.expand_dims(struct_arr, axis=0)
+        spacing = Spacing(pixdim=resample_dim)
+        struct_arr = spacing(struct_arr, nifti.affine)[0]
+        struct_arr = np.squeeze(struct_arr, axis=0)
+    #print(struct_arr.shape)
+
 
     # struct_arr = np.array(nib.load(file_path).get_data().astype("<f4"))  # TODO:
     # nilearn.image.smooth_img(row["path"], fwhm=3).get_data().astype("<f4")
     # struct_arr = nib.load(file_path).get_data().astype("<f4")
     # np.array(nib.load(file_path).get_data().astype("<f4"))
-
     if remove_nan:
         struct_arr = np.nan_to_num(struct_arr)
     if mask is not None:
@@ -32,6 +45,7 @@ def load_nifti(file_path, mask=None, z_factor=None, remove_nan=True):
         struct_arr = np.around(zoom(struct_arr, z_factor), 0)
 
     return struct_arr
+
 
 
 def save_nifti(file_path, struct_arr):
@@ -109,22 +123,28 @@ def load_mri_images(
 
     if case_list:
         df = df.loc[df["Case"].isin(case_list)]
-    
+
     mri_imgs = []
     labels = []
     participants = []
-    path_dict = {"mask": "Path Mask", "vessel": "Path Vessel"}
+
     for idx, row in tqdm.tqdm(df.iterrows(), total=len(df)):
         # nifti_orig = nib.load(row["Path Orig"])
         nifti_orig = load_nifti(row["Path Orig"])
-        mri_imgs.append(nifti_orig)
         if prediction in ["mask", "vessel"]:
-            # nifti_mask = nib.load(row[path_dict[prediction]])
-            nifti_mask = load_nifti(row[path_dict[prediction]])
-            labels.append(nifti_mask)
+            # nifti_mask = nib.load(row[DF_DICT[prediction]])
+            nifti_mask = load_nifti(row[DF_DICT[prediction]])
+            labels.append(np.rint(nifti_mask))
+            #values, count = np.unique(np.rint(nifti_mask), return_counts=True)
+            #print(count, (count[1]/count[0]))
         else:
-            row["Rupture Status"]
+            labels.append(row[DF_DICT[prediction]])
+            nifti_labeled_mask = load_nifti(row["Path Labeled Mask"])
+            nifti_labeled_mask[nifti_labeled_mask != row["Labeled Mask Index"]] = 0
+            # TODO: Add resample here
+            nifti_orig *= nifti_labeled_mask
 
+        mri_imgs.append(nifti_orig)
         participants.append(row["Case"])
 
     return mri_imgs, labels, participants
@@ -135,6 +155,7 @@ def load_aneurysm_dataset(
     mri_data_selection: str = "unprocessed",
     random_state: int = 0,
     limit: Optional[int] = None,
+    prediction: str = "mask",
 ) -> pd.DataFrame:
     """
     Load, merge, and filter the Meta & MRI data.
@@ -162,7 +183,8 @@ def load_aneurysm_dataset(
         df["Age"], [0, 20, 30, 40, 50, 60, 70, 80, 90, 100]
     )
     df["Aneurysm Count"] = df.groupby('Angiography Data')['Angiography Data'].transform('count')
-    df = df.drop_duplicates(subset=['Angiography Data'])
+    if prediction != "rupture risk":
+        df = df.drop_duplicates(subset=['Angiography Data'])
     df["Case"] = df["Angiography Data"].apply(lambda x: x[:-12])
     df["Path Orig"] = df["Case"].apply(lambda x: os.path.join(unprocessed_data_path, f'{x}_orig.nii.gz'))
     df["Path Mask"] = df["Case"].apply(lambda x: os.path.join(unprocessed_data_path, f'{x}_masks.nii.gz'))
@@ -209,16 +231,18 @@ def split_mri_images(
         label_encoder (LabelEncoder): Label encoder used for encoding labels.
     """
 
+    df = df.loc[df[DF_DICT[prediction]].notnull()]
+
     if balance_data:
         len_before = len(df)
         # Remove unused categories in label
         try:
             df[prediction] = df[
-                prediction
+                [DF_DICT[prediction]]
             ].cat.remove_unused_categories()
         except Exception:
             pass
-        df_grouped = df.groupby(prediction)
+        df_grouped = df.groupby(DF_DICT[prediction])
         # balance data
         df = df_grouped.apply(
             lambda x: x.sample(
@@ -230,8 +254,8 @@ def split_mri_images(
     label_encoder = preprocessing.LabelEncoder()
 
     if encode_labels:
-        label_encoder.fit(df[prediction])
-        df[prediction] = label_encoder.transform(df[prediction])
+        label_encoder.fit(df[DF_DICT[prediction]])
+        df[prediction] = label_encoder.transform(df[DF_DICT[prediction]])
 
     # Split train and test set
     df_train, df_test = train_test_split(
@@ -327,7 +351,7 @@ def print_df_stats(df, df_train, df_val, df_test, label_encoder, prediction):
     def get_stats(df):
         lenghts = [len(df)]
         for label in range(len(labels)):
-            df_label = df[df[prediction] == label]
+            df_label = df[df[DF_DICT[prediction]] == label]
             lenghts.append(
                 str(len(df_label))
                 + " ("
@@ -344,3 +368,6 @@ def print_df_stats(df, df_train, df_val, df_test, label_encoder, prediction):
 
     print(tabulate(stats, headers=headers))
     print()
+
+
+

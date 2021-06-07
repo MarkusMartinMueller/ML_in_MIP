@@ -10,14 +10,18 @@ from ignite.handlers import EarlyStopping, ModelCheckpoint
 from ignite.metrics import Accuracy, ConfusionMatrix, Loss, Recall, IoU, DiceCoefficient
 from torch.utils.data.dataloader import DataLoader
 from pytorch3dunet.unet3d.losses import BCEDiceLoss
+from monai.transforms import AsDiscrete, Compose
+from monai.handlers import MeanDice
 
 from aneurysm_utils.environment import Experiment
 from aneurysm_utils.models import get_model
 from aneurysm_utils.utils import pytorch_utils
 from aneurysm_utils import evaluation
+from aneurysm_utils.utils.ignite_utils import IntersectionOverUnion
 
 # -------------------------- Train model ---------------------------------
 
+## -------------------------- Sklearn ------------------------------
 def train_sklearn_model(exp, params, artifacts):
 
     mri_imgs_train, labels_train = artifacts["train_data"]
@@ -276,6 +280,7 @@ def train_sklearn_model(exp, params, artifacts):
 
         dump(model, os.path.join(exp.output_path, params.model_name + ".joblib"))
 
+## -------------------------- Pytorch ------------------------------
 
 def train_pytorch_model(exp: Experiment, params, artifacts):
     # new SummaryWriter for new experiment
@@ -314,8 +319,11 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
         params.criterion = "CrossEntropyLoss"
 
     if not params.num_classes:
-        params.num_classes = len(labels_train[0])
-        print("", params.num_classes)
+        try:
+            params.num_classes = len(np.unique(np.concatenate(labels_train).astype(int)))
+        except TypeError:
+            params.num_classes = len(set(labels_train))
+        print("Number of Classes", params.num_classes)
 
     if not params.num_threads:
         params.num_threads = None
@@ -340,34 +348,37 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
     if params.seed:
         torch.manual_seed(params.seed)
 
-       
-    
-    # Get Model Architecture
-    model, model_params = get_model(params)
-    
-    exp.artifacts["model"] = model
-    
-    # print('number of trainable parameters =', count_parameters(model))
-    
-    # Log all params to comet
-    exp.comet_exp.log_parameters(params.to_dict())
-
     if params.training_size:
         mri_imgs_train = mri_imgs_train[: params.training_size]
 
     if params.val_size:
         mri_imgs_val = mri_imgs_val[: params.val_size]
 
+    if params.prediction in ["mask", "vessel"]:
+        params.segmentation = True
+    else:
+        params.segmentation = None
+
+       
+    
+    # Get Model Architecture
+    model, model_params = get_model(params)
+    
+    exp.artifacts["model"] = model
+
+    
+    # print('number of trainable parameters =', count_parameters(model))
+    
+    # Log all params to comet
+    exp.comet_exp.log_parameters(params.to_dict())
+
+
     # Initialize data loaders
     
     # TODO: use augmentation
-    # augmentations = [SagittalFlip(), SagittalTranslate(dist=(-2, 3))]
-    # adni_data_train = ADNIDataset(X_train, y_train, transform=transforms.Compose(augmentations + [ToTensor()]), dtype=dtype)
-    # adni_data_val = ADNIDataset(X_val, y_val, transform=transforms.Compose([ToTensor()]), dtype=dtype)
-    # adni_data_test = ADNIDataset(X_holdout, y_holdout, transform=transforms.Compose([ToTensor()]), dtype=dtype)
 
-    train_dataset = pytorch_utils.PPMIDataset(
-        mri_imgs_train, labels_train, dtype=np.float64
+    train_dataset = pytorch_utils.AneurysmDataset(
+        mri_imgs_train, labels_train, dtype=np.float64, segmentation=params.segmentation
     )
 
     sampler = None
@@ -395,8 +406,8 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
 
 
     exp.log.info("Train dataset loaded. Length: " + str(len(train_loader.dataset)))
-    validation_dataset = pytorch_utils.PPMIDataset(
-        mri_imgs_val, labels_val, dtype=np.float64
+    validation_dataset = pytorch_utils.AneurysmDataset(
+        mri_imgs_val, labels_val, dtype=np.float64, segmentation=params.segmentation
     )
     val_loader = DataLoader(
         validation_dataset,
@@ -415,6 +426,18 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
         else:
             criterion = nn.CrossEntropyLoss()
 
+    elif params.criterion == "BCEWithLogitsLoss":
+        if params.criterion_weights:
+            criterion = nn.BCEWithLogitsLoss(weight=torch.FloatTensor(params.criterion_weights).to(device))
+        else:
+            criterion = nn.BCEWithLogitsLoss()
+
+    elif params.criterion == "BCELoss":
+        if params.criterion_weights:
+            criterion = nn.BCELoss(weight=torch.FloatTensor(params.criterion_weights).to(device))
+        else:
+            criterion = nn.BCELoss()
+        
     elif params.criterion == "MultiLabelMarginLoss":
         criterion = nn.MultiLabelMarginLoss()
     
@@ -425,6 +448,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
 
     else:
         raise ValueError("No criterion given")
+
     if params.use_cuda:
         # TODO: required?
         criterion = criterion.cuda()
@@ -455,16 +479,29 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
         )
     else:
         raise ValueError("Unknown optimizer: " + str(params.optimizer))
+        print(params.segmentation)
+    if params.segmentation:
+        #post_pred = Compose(
+              #  [AsDiscrete(threshold_values=True)])
+        #output_transform=lambda x, y, y_pred: (y_pred, y)
+        #val_metrics = {
+         #   "Mean_Dice": MeanDice(), 
+          #  "loss": Loss(criterion),
+          #  }
+        output_transform = lambda x : (x[0], torch.squeeze(x[1], 1)) #(torch.flatten(x[0], start_dim=1), torch.flatten(x[1], start_dim=1))
+    else:
+        output_transform = None
+        
     
     # trainer and evaluator
     trainer = create_supervised_trainer(model, optimizer, criterion, device=device)
     evaluator = create_supervised_evaluator(
         model,
         metrics={
-            #"accuracy": Accuracy(is_multilabel=True),
-            #"loss": Loss(criterion),
-            #"recall": Recall(),
-            "confusion_matrix": ConfusionMatrix(num_classes=1),
+            "accuracy": Accuracy(), #output_transform=output_transform, is_multilabel=True
+            "loss": Loss(criterion),
+            "recall": Recall(),
+            "confusion_matrix": ConfusionMatrix(params.num_classes, output_transform=output_transform),
         },
         device=device,
     )
@@ -523,8 +560,8 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
             sen = float(metrics["recall"].data[1])
             bal_acc = (spec + sen) / 2
             exp.log.info(
-                "Training Results - Epoch: {} Avg accuracy: {:.2f} Avg loss: {:.2f}".format(
-                    engine.state.epoch, acc, avg_nll
+                "Training Results - Epoch: {} Bal Avg accuracy: {:.2f} Avg loss: {:.2f}".format(
+                    engine.state.epoch, bal_acc, avg_nll
                 )
             )
             exp.comet_exp.log_metrics(
@@ -559,8 +596,8 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
             bal_acc = (spec + sen) / 2
             conf_matrix = metrics["confusion_matrix"]
             exp.log.info(
-                "Validation Results - Epoch: {}  Avg accuracy: {:.2f} Avg loss: {:.2f}".format(
-                    engine.state.epoch, acc, avg_nll
+                "Validation Results - Epoch: {} Bal Avg accuracy: {:.2f} Avg loss: {:.2f}".format(
+                    engine.state.epoch, bal_acc, avg_nll
                 )
             )
             exp.comet_exp.log_metrics(
@@ -599,7 +636,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
     if mri_imgs_test is not None:
         with exp.comet_exp.test():
             pred_classes, pred_scores = zip(*pytorch_utils.predict(model, mri_imgs_test, cuda=params.use_cuda))
-            exp.comet_exp.log_metrics(evaluation.evaluate_model(labels_test, pred_classes))
+            exp.comet_exp.log_metrics(evaluation.evaluate_model(labels_test, pred_classes, params.segmentation))
 
     # TODO not really needed?
     exp.comet_exp.end()

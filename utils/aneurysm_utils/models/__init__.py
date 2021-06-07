@@ -10,7 +10,8 @@ from aneurysm_utils.models import (
     resnet,
     simple_cnn,
     wide_resnet,
-    unet
+    unet,
+    simple_cnn,
 )
 
 
@@ -48,7 +49,10 @@ def get_model(params: Dict):
         "CNN3DTutorial",
         "ClassificationModel3D",
         "LinearModel3D",
-        "3DUnet",
+        "MonaiUnet",
+        "SimpleCNN3D",
+        "SimpleCNN2D",
+
     ]
 
     if params.model_name == "resnet":
@@ -243,7 +247,6 @@ def get_model(params: Dict):
                 sample_duration=params.sample_size[2],
                 last_fc=last_fc,
             )
-
     elif params.model_name == "simpleCNN":
         # TODO: support last_fc, num_classes, and sample_size
         model = simple_cnn.CNN3D()
@@ -265,14 +268,25 @@ def get_model(params: Dict):
         model = cnn_3d.CNN3DTutorial(
             input_shape=params.sample_size, num_classes=params.num_classes
         )
+    elif params.model_name == "SimpleCNN2D":
+        model = simple_cnn.SimpleCNN2D()
+    elif params.model_name == "SimpleCNN3D":
+        model = simple_cnn.SimpleCNN3D()
+
     elif params.model_name == "CNN3DMoboehle":
         # TODO: support last_fc
         model = cnn_3d.CNN3DMoboehle(
             input_shape=params.sample_size, num_classes=params.num_classes,
         )
-    elif params.model_name == "3DUnet":
-        # TODO: support last_fc
-        model = unet.UNet3D(1,1)
+    elif params.model_name == "MonaiUnet":
+        model = unet.UNet(
+            dimensions=3,
+            in_channels=1,
+            out_channels=params.num_classes,
+            channels=(16, 32, 64, 128, 256),
+            strides=(2, 2, 2, 2),
+            num_res_units=2,
+        )
     elif params.model_name == "LinearModel3D":
         # TODO: support last_fc,
         model = linear_3d.LinearModel3D(
@@ -284,7 +298,7 @@ def get_model(params: Dict):
             params.dropout = 0
         if not params.dropout2:
             params.dropout2 = 0
-        
+        print(params.sample_size)
         model = cnn_3d.ClassificationModel3D(
             input_shape=params.sample_size,
             num_classes=params.num_classes,

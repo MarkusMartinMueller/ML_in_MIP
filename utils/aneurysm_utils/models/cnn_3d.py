@@ -58,6 +58,8 @@ class ClassificationModel3D(nn.Module):
         self.Conv_3_bn = nn.BatchNorm3d(32)
         self.Conv_4 = nn.Conv3d(32, 64, 3)
         self.Conv_4_bn = nn.BatchNorm3d(64)
+        print(calculate_fc_input_shape(
+            64, 4, [2, 3, 2, 3], np.asarray(input_shape)))
         self.dense_1 = nn.Linear(calculate_fc_input_shape(
             64, 4, [2, 3, 2, 3], np.asarray(input_shape)), 128)
         self.dense_2 = nn.Linear(128, 64)
@@ -145,9 +147,9 @@ class CNN3DTutorial(nn.Module):
         self.conv2 = nn.Conv3d(6, 16, 3)
         self.conv_2_mp = nn.MaxPool3d(2)
         # an affine operation: y = Wx + b
-        # 6*6 from image dimension
+        # 6*6 from image dimensiongm
         self.fc1 = nn.Linear(calculate_fc_input_shape(
-            16, 2, [2, 2], np.asarray(input_shape)),  120)
+            16, 2, [2, 2], np.asarray(input_shape)), 120)
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, num_classes)
         self.relu = nn.ReLU()
