@@ -10,6 +10,9 @@ from torch_geometric.utils import intersection_and_union as i_and_u
 from pointnet import SegNet
 import torch.nn.functional as F
 
+from monai.transforms import Spacing
+import torch.nn as nn
+
 def intensity_segmentation(image : np.array,threshold :float) ->np.array:
     """
     Does a binary segmentation on an image depending on the intensity of the pixels, if the intentsity is bigger than the threshold its a vessel,
@@ -69,36 +72,49 @@ def normalize_matrix(x:np.array):
     return np.column_stack((a,b,c))
 
 
-def train(model,train_loader,device :torch.device):
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+def train(model,train_loader,device :torch.device,lr=0.001,pos_weight=6):
     model.train()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    
+    criterion =nn.BCEWithLogitsLoss(pos_weight=torch.FloatTensor([6]).to(device))
+    #criterion =nn.BCEWithLogitsLoss().to(device)
+    #criterion =nn.CrossEntropyLoss(weight=torch.FloatTensor([100.0]).to(device))
+
     total_loss = correct_nodes = total_nodes = 0
     for i, data in enumerate(train_loader):
         data = data.to(device)
         optimizer.zero_grad()
         out = model(data)
-        loss = F.binary_cross_entropy(out, data.y)
+
+
+   
+        loss = criterion(torch.unsqueeze(out,dim=1),torch.unsqueeze(data.y,dim=1))
+        #loss = criterion(torch.squeeze(out),data.y)
         loss.backward()
         optimizer.step()
-        total_loss += loss.item()
-        correct_nodes += torch.round(out).eq(data.y).sum().item()
-        total_nodes += data.num_nodes
-
-        if (i + 1) % 10 == 0:
+        with torch.no_grad():
+            total_loss += float(loss.item())
+            correct_nodes += int(torch.round(torch.sigmoid(out)).eq(data.y).sum().item())
+            total_nodes += int(data.num_nodes)
             print(f'[{i+1}/{len(train_loader)}] Loss: {total_loss / 10:.4f} '
-                  f'Train Acc: {correct_nodes / total_nodes:.4f}')
-            total_loss = correct_nodes = total_nodes = 0
+            f'Train Acc: {correct_nodes / total_nodes:.4f}')
+    torch.save(model.state_dict(), "modelweights.pt")
+
+   
+    
 
 @torch.no_grad()
-def test(model : SegNet,loader :dataloader,device :torch.device):
+def test(model : SegNet,loader ,device :torch.device):
     model.eval()
+    print("test")
     accuracies=[]
     for data in loader:
         data = data.to(device)
         pred = model(data)
-        correct_nodes = torch.round(pred).eq(data.y).sum().item()
-        total_nodes =data.num_nodes
+        correct_nodes = (pred.x).eq(data.y).sum().item()
+        total_nodes =int(data.num_nodes)
         accuracies.append(correct_nodes/total_nodes)
+        torch.cuda.empty_cache
     return np.sum(accuracies)/len(accuracies)
         
 def graph_to_image(graph : Data):
@@ -106,5 +122,15 @@ def graph_to_image(graph : Data):
     graph.pos[:,:2]=graph.pos[:,:2]*244
     graph.pos[:,2:]=graph.pos[:,2:]*220
     image[tuple(np.array(graph.pos).T)]=graph.x
+    
     return image
 
+
+def downsample(struct_arr :np.array,affine :np.array,resample_dim:tuple=(1.5, 1.5, 1.5) ):
+    struct_arr = struct_arr.astype("<f4")
+    if resample_dim is not None:
+        struct_arr = np.expand_dims(struct_arr, axis=0)
+        spacing = Spacing(pixdim=resample_dim)
+        struct_arr = spacing(struct_arr, affine)[0]
+        struct_arr = np.squeeze(struct_arr, axis=0)
+    return struct_arr

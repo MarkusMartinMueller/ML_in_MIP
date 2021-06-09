@@ -9,9 +9,10 @@ import nibabel as nib
 import numpy as np
 
 class NiftiDataset(Dataset):
-    def __init__(self, root,save_dir,transform=None, pre_transform=None,forceprocessing =False):
+    def __init__(self, root,save_dir, downsample =True,transform=None, pre_transform=None,forceprocessing =False):
         self.forceprocessing = forceprocessing
         self.save_dir =save_dir
+        self.downsample = downsample
         super(NiftiDataset, self).__init__(root, transform, pre_transform)
         
     @property
@@ -31,9 +32,10 @@ class NiftiDataset(Dataset):
         return self.save_dir
     def process(self):
         self.cases = set()
-     
+        
+
         for filename in os.listdir(self.root):
-            if filename.endswith(".nii"):
+            if filename.endswith(".nii.gz"):
                 self.cases.add(filename.split('_')[0])
                 #g = filename.split('_')[0]
                 #cases.setdefault(g, []).append(filename)
@@ -42,10 +44,16 @@ class NiftiDataset(Dataset):
         self.forceprocessing=False    
 
     def file_to_data(self,case):
-        image = utils.min_max_normalize(nib.load(self.root+ "/"+case+'_orig.nii').get_fdata())
-        image_aneursysm = nib.load(self.root + "/"+case+'_masks.nii').get_fdata()
+        
+        image = utils.min_max_normalize(nib.load(self.root+ "/"+case+'_orig.nii.gz').get_fdata())
+        image_aneursysm = nib.load(self.root + "/"+case+'_masks.nii.gz').get_fdata()
+        affine_image = nib.load(self.root+ "/"+case+'_orig.nii.gz').affine
+        affine_aneurysm = nib.load(self.root+ "/"+case+'_masks.nii.gz').affine
         mask =utils.intensity_segmentation(image,0.34)
         filtered= np.multiply(image,mask)
+        if self.downsample:
+            filtered =utils.downsample(filtered,affine_image)
+            image_aneursysm=utils.downsample(image_aneursysm,affine_aneurysm)
         return utils.segmented_image_to_graph(filtered,image_aneursysm)
         
 
