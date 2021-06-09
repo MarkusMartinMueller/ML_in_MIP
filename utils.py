@@ -42,7 +42,7 @@ def min_max_normalize(mri_img):
     mri_img /= np.max(mri_img)
     return mri_img
     
-def segmented_image_to_graph(image : np.array, image_mask: np.array):
+def segmented_image_to_graph(image : np.array, image_mask: np.array,shape:tuple=(256,256,220)):
     """
     Converts orinal image to labeled graph
     
@@ -58,16 +58,16 @@ def segmented_image_to_graph(image : np.array, image_mask: np.array):
         contains the graph
     """
     labels = torch.tensor(np.ndarray.flatten(image_mask[image!=0]),dtype = torch.float)
-    coordinates =torch.tensor(normalize_matrix(np.where(image !=0)),dtype=torch.float)
+    coordinates =torch.tensor(normalize_matrix(np.where(image !=0),shape),dtype=torch.float)
     intensity_values =torch.unsqueeze( torch.tensor(np.ndarray.flatten(image[image!=0]),dtype=torch.float),1)
     #data_point_vector= np.vstack([intensity_values,coordinates])
     return Data(x=intensity_values,pos=coordinates,y=labels)
 
 
-def normalize_matrix(x:np.array):
-    a=x[0]/256
-    b=x[1]/256
-    c=x[2]/220
+def normalize_matrix(x:np.array,shape:tuple):
+    a=x[0]/shape[0]
+    b=x[1]/shape[0]
+    c=x[2]/shape[2]
 
     return np.column_stack((a,b,c))
 
@@ -76,7 +76,7 @@ def train(model,train_loader,device :torch.device,lr=0.001,pos_weight=6):
     model.train()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     
-    criterion =nn.BCEWithLogitsLoss(pos_weight=torch.FloatTensor([6]).to(device))
+    criterion =nn.BCEWithLogitsLoss(pos_weight=torch.FloatTensor([pos_weight]).to(device))
     #criterion =nn.BCEWithLogitsLoss().to(device)
     #criterion =nn.CrossEntropyLoss(weight=torch.FloatTensor([100.0]).to(device))
 
@@ -85,12 +85,13 @@ def train(model,train_loader,device :torch.device,lr=0.001,pos_weight=6):
         data = data.to(device)
         optimizer.zero_grad()
         out = model(data)
-
+        
 
    
         loss = criterion(torch.unsqueeze(out,dim=1),torch.unsqueeze(data.y,dim=1))
         #loss = criterion(torch.squeeze(out),data.y)
         loss.backward()
+        nn.utils.clip_grad_value_(model.parameters(), clip_value=1.0)
         optimizer.step()
         with torch.no_grad():
             total_loss += float(loss.item())
@@ -117,12 +118,14 @@ def test(model : SegNet,loader ,device :torch.device):
         torch.cuda.empty_cache
     return np.sum(accuracies)/len(accuracies)
         
-def graph_to_image(graph : Data):
-    image =np.zeros(256,256,220)
-    graph.pos[:,:2]=graph.pos[:,:2]*244
-    graph.pos[:,2:]=graph.pos[:,2:]*220
-    image[tuple(np.array(graph.pos).T)]=graph.x
-    
+def graph_to_image(graph : Data,shape:tuple=(256,256,220)):
+    image =np.zeros(shape)
+    graph.pos[:,:2]=graph.pos[:,:2]*shape[0]
+    graph.pos[:,2:]=graph.pos[:,2:]*shape[2]
+    for value, coords in zip(graph.x,graph.pos):
+        coords=[round(num) for num in coords.tolist()]
+
+        image[coords[0],coords[1],coords[2]]= value.item()
     return image
 
 

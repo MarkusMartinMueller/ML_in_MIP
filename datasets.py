@@ -40,13 +40,16 @@ class NiftiDataset(Dataset):
                 #g = filename.split('_')[0]
                 #cases.setdefault(g, []).append(filename)
         for idx,case in enumerate(self.cases):
-            torch.save(self.file_to_data(case), osp.join(self.save_dir, "data_{}.pt".format(idx)))
+            try:
+                nib.load(self.root+ "/"+case+'_orig.nii.gz')
+            except:
+                print(f"Couldn't load {self.root}  /{case}_orig.nii.gz continue to next file")
+                continue
+            else:
+                torch.save(self.file_to_data(case), osp.join(self.save_dir, "data_{}.pt".format(idx)))
         self.forceprocessing=False    
 
     def file_to_data(self,case):
-        
-        image = utils.min_max_normalize(nib.load(self.root+ "/"+case+'_orig.nii.gz').get_fdata())
-        image_aneursysm = nib.load(self.root + "/"+case+'_masks.nii.gz').get_fdata()
         affine_image = nib.load(self.root+ "/"+case+'_orig.nii.gz').affine
         affine_aneurysm = nib.load(self.root+ "/"+case+'_masks.nii.gz').affine
         mask =utils.intensity_segmentation(image,0.34)
@@ -54,7 +57,7 @@ class NiftiDataset(Dataset):
         if self.downsample:
             filtered =utils.downsample(filtered,affine_image)
             image_aneursysm=utils.downsample(image_aneursysm,affine_aneurysm)
-        return utils.segmented_image_to_graph(filtered,image_aneursysm)
+        return utils.segmented_image_to_graph(filtered,image_aneursysm,filtered.shape)
         
 
 
