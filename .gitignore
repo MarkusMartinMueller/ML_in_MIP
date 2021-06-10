@@ -1,5 +1,6 @@
 *.png
 *.pth
+*.pt
 .devcontainer/
 data/ModelNet10
 data/ShapeNet
