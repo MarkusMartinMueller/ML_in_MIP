@@ -54,8 +54,12 @@ class NiftiDataset(Dataset):
         return len(self.processed_file_names)
 
     def get(self, idx):
-        data = torch.load(osp.join(self.processed_dir, 'data_{}.pt'.format(idx)))
-        return data
+        try:
+            data = torch.load(osp.join(self.processed_dir, 'data_{}.pt'.format(idx)))
+            return data
+        except:
+            print(f"Couldnt read data_{idx}.pt")
+            return None
 
 
 if __name__ == '__main__':

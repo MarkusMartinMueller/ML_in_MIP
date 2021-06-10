@@ -3,7 +3,7 @@ import torch
 import torch.nn.functional as F
 from torch.nn import Sequential as Seq, Linear as Lin, ReLU, BatchNorm1d as BN
 import torch_geometric.transforms as T
-from torch_geometric.data import DataLoader
+from torch_geometric.data import DataLoader,Data
 from torch_geometric.nn import PointConv, fps, radius, global_max_pool
 from torch_geometric.nn import knn_interpolate
 import nibabel as nib
@@ -66,6 +66,7 @@ class FPModule(torch.nn.Module):
 class SegNet(torch.nn.Module):
     def __init__(self, num_classes):
         super(SegNet, self).__init__()
+
         self.sa1_module = SAModule(0.2, 0.2, MLP([1 + 3, 64, 64, 128]))
         self.sa2_module = SAModule(0.25, 0.4, MLP([128 + 3, 128, 128, 256]))
         self.sa3_module = GlobalSAModule(MLP([256 + 3, 256, 512, 1024]))
@@ -78,7 +79,7 @@ class SegNet(torch.nn.Module):
         self.lin2 = torch.nn.Linear(128, 128)
         self.lin3 = torch.nn.Linear(128, num_classes)
 
-    def forward(self, data):
+    def forward(self, data,get_seg:bool = False):
         sa0_out = (data.x, data.pos, data.batch)
         sa1_out = self.sa1_module(*sa0_out)
         sa2_out = self.sa2_module(*sa1_out)
@@ -86,15 +87,21 @@ class SegNet(torch.nn.Module):
 
         fp3_out = self.fp3_module(*sa3_out, *sa2_out)
         fp2_out = self.fp2_module(*fp3_out, *sa1_out)
-        x, _, _ = self.fp1_module(*fp2_out, *sa0_out)
+        x, pos, _ = self.fp1_module(*fp2_out, *sa0_out)
 
         x = F.relu(self.lin1(x))
         x = F.dropout(x, p=0.5, training=self.training)
         x = self.lin2(x)
         x = F.dropout(x, p=0.5, training=self.training)
         x = self.lin3(x)
-        
-        return torch.squeeze(torch.sigmoid(x))
+        if self.training:
+            return torch.squeeze(x)
+        else:
+            x= torch.round(torch.sigmoid(torch.squeeze(x)))
+            return Data(x=x,pos=torch.squeeze(pos))
+    
+            
+
 
 if __name__ == '__main__':
     data_path = Path("/workspaces/project_med/project/data")

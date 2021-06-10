@@ -12,7 +12,7 @@ from torch_geometric.data import DataLoader
 import torch.nn.functional as F
 from utils import train
 from utils import test
-
+from utils import graph_to_image
 
 
 
@@ -32,10 +32,11 @@ test_dataset = dataset[int(len(dataset)*0.8):]
 train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True,
                           num_workers=4)
 test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False,
-                         num_workers=4)
+                          num_workers=4)
 
-for epoch in range(1, 4):
-    train(model,train_loader,device)
-    accuracy = test(model,test_loader,device)
-    print('Epoch: {:02d}, accuracy: {:.4f}'.format(epoch, accuracy))
+# for epoch in range(1, 2):
+#      train(model,train_loader,device)
+    
+model.load_state_dict(torch.load("modelweights.pt"))   
+accuracy = test(model,test_loader,device)
 
