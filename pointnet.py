@@ -116,4 +116,3 @@ if __name__ == '__main__':
 
     y=model(data)
     print(torch.exp(y))
-

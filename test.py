@@ -34,9 +34,30 @@ train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True,
 test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False,
                           num_workers=4)
 
-# for epoch in range(1, 2):
-#      train(model,train_loader,device)
-    
-model.load_state_dict(torch.load("modelweights.pt"))   
-accuracy = test(model,test_loader,device)
+for epoch in range(1, 40):
+    train(model,train_loader,device,pos_weight=50,lr=0.0001)
+    accuracy = test(model,test_loader,device)
+    print('Epoch: {:02d}, accuracy: {:.4f}'.format(epoch, accuracy))
 
+
+
+
+
+
+# data_path = Path('data')
+# image_nib = nib.load(data_path / 'A003_orig.nii.gz')
+# image_aneurysm_nib = nib.load(data_path/'A003_masks.nii.gz')
+# affine_aneurysm = image_aneurysm_nib.affine
+# image = utils.min_max_normalize(image_nib.get_fdata())
+# image_aneursysm = image_aneurysm_nib.get_fdata()
+# affine_image = image_nib.affine
+# mask =utils.intensity_segmentation(image,0.34)
+# filtered= np.multiply(image,mask)
+# filtered =utils.downsample(filtered,affine_image)
+# image_aneursysm=utils.downsample(image_aneursysm,affine_aneurysm)
+# graph = utils.segmented_image_to_graph(filtered,image_aneursysm,(47,47,40))
+# m = torch.nn.Upsample(size=(256,256,220), mode='trilinear')
+# image_new = utils.graph_to_image(graph,(47,47,40))
+# print("test")
+# nifti = Nifti1Image(image_new,affine=affine_image,header=image_nib.header)
+# nip.view_img(image_new, bg_img=False, black_bg=True)

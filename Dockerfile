@@ -15,7 +15,7 @@ RUN pip install torch-sparse -f https://pytorch-geometric.com/whl/torch-1.8.1+cu
 RUN pip install torch-cluster -f https://pytorch-geometric.com/whl/torch-1.8.1+cu111.html
 RUN pip install torch-spline-conv -f https://pytorch-geometric.com/whl/torch-1.8.1+cu111.html
 RUN pip install torch-geometric
-
+RUN pip install monai
 # copy the content of the local src directory to the working directory
 #COPY src/ .
 
