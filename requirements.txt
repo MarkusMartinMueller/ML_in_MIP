@@ -1,6 +1,5 @@
 appdirs==1.4.4
 backcall==0.2.0
-dataclasses==0.8
 decorator==5.0.7
 imageio==2.9.0
 importlib-metadata==4.0.0
