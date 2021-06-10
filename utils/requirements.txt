@@ -1,0 +1,20 @@
+tqdm
+scipy
+numpy
+GitPython
+pybids
+pytorch-ignite
+nilearn
+sklearn
+torch
+matplotlib
+addict
+nibabel
+comet-ml
+pypmi
+pyvista
+itkwidgets
+openpyxl
+monai
+pytorch-ignite==0.4.4
+pytorch3dunet @ git+https://github.com/wolny/pytorch-3dunet.git
