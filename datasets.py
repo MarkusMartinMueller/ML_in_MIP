@@ -50,8 +50,12 @@ class NiftiDataset(Dataset):
         self.forceprocessing=False    
 
     def file_to_data(self,case):
-        affine_image = nib.load(self.root+ "/"+case+'_orig.nii.gz').affine
-        affine_aneurysm = nib.load(self.root+ "/"+case+'_masks.nii.gz').affine
+        nib_image =nib.load(self.root+ "/"+case+'_orig.nii.gz')
+        nib_aneurysm =nib.load(self.root+ "/"+case+'_masks.nii.gz')
+        affine_image = nib_image.affine
+        affine_aneurysm = nib_aneurysm.affine
+        image = nib_image.get_fdata()
+        image_aneursysm =nib_image.get_fdata()
         mask =utils.intensity_segmentation(image,0.34)
         filtered= np.multiply(image,mask)
         if self.downsample:
