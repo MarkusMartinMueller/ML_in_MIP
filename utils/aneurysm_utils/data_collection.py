@@ -27,6 +27,7 @@ def load_nifti(file_path, mask=None, z_factor=None, remove_nan=True, resample_di
 
     if resample_dim is not None:
         struct_arr = np.expand_dims(struct_arr, axis=0)
+        ###To Do: Resampling method: Lanczos
         spacing = Spacing(pixdim=resample_dim)
         struct_arr = spacing(struct_arr, nifti.affine)[0]
         struct_arr = np.squeeze(struct_arr, axis=0)
