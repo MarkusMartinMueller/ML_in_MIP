@@ -1,11 +1,11 @@
 import random
-
+import os
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.utils.data
 from torch.utils.data import Dataset
-from torch_geometric.data import Dataset_Geometric
+from torch_geometric.data import Dataset as Dataset_Geometric
 
 def predict(model, images: list, cuda=False, apply_softmax=True):
     predictions = []
