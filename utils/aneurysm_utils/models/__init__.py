@@ -12,6 +12,7 @@ from aneurysm_utils.models import (
     wide_resnet,
     unet,
     simple_cnn,
+    unet_3d,
 )
 
 
@@ -52,6 +53,7 @@ def get_model(params: Dict):
         "MonaiUnet",
         "SimpleCNN3D",
         "SimpleCNN2D",
+        "Unet3D"
 
     ]
 
@@ -287,6 +289,12 @@ def get_model(params: Dict):
             strides=(2, 2, 2, 2),
             num_res_units=2,
         )
+    elif params.model_name == "Unet3D":
+        model = unet_3d.Unet_3D(
+            in_channels= 1,
+            out_channels= params.num_classes, 
+            filters = [64,128,256],
+            )
     elif params.model_name == "LinearModel3D":
         # TODO: support last_fc,
         model = linear_3d.LinearModel3D(

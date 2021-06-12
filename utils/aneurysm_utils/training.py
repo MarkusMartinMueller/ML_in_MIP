@@ -377,7 +377,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
     
     # TODO: use augmentation
 
-    train_dataset = pytorch_utils.AneurysmDataset(
+    train_dataset = pytorch_utils.PytorchDataset(
         mri_imgs_train, labels_train, dtype=np.float64, segmentation=params.segmentation
     )
 
@@ -406,7 +406,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
 
 
     exp.log.info("Train dataset loaded. Length: " + str(len(train_loader.dataset)))
-    validation_dataset = pytorch_utils.AneurysmDataset(
+    validation_dataset = pytorch_utils.PytorchDataset(
         mri_imgs_val, labels_val, dtype=np.float64, segmentation=params.segmentation
     )
     val_loader = DataLoader(
