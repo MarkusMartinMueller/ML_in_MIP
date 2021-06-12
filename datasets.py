@@ -32,7 +32,7 @@ class NiftiDataset(Dataset):
         return self.save_dir
     def process(self):
         self.cases = set()
-        
+            
 
         for filename in os.listdir(self.root):
             if filename.endswith(".nii.gz"):

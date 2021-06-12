@@ -128,7 +128,7 @@ class PytorchgeometricDataset(Dataset_Geometric):
         self.forceprocessing = forceprocessing
         self.save_dir =save_dir
         self.downsample = downsample
-        super(Pytorchgeometric_Dataset, self).__init__(root, transform, pre_transform)
+        super(PytorchgeometricDataset, self).__init__(root, transform, pre_transform)
         
     @property
     def processed_file_names(self):
