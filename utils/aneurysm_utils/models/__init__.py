@@ -13,6 +13,7 @@ from aneurysm_utils.models import (
     unet,
     simple_cnn,
     unet_3d,
+    pointnet
 )
 
 
@@ -53,7 +54,8 @@ def get_model(params: Dict):
         "MonaiUnet",
         "SimpleCNN3D",
         "SimpleCNN2D",
-        "Unet3D"
+        "Unet3D",
+        "SegNet",
 
     ]
 
@@ -288,6 +290,10 @@ def get_model(params: Dict):
             channels=(16, 32, 64, 128, 256),
             strides=(2, 2, 2, 2),
             num_res_units=2,
+        )
+    elif params.model_name == "SegNet":
+        model = pointnet.SegNet(
+            num_classes= params.num_classes
         )
     elif params.model_name == "Unet3D":
         model = unet_3d.Unet_3D(

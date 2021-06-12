@@ -692,8 +692,8 @@ class Environment:
         """
         Returns the path to the datasets folder of the selected project.
         """
-        #folder = os.path.join(self.project_folder, self._DATASETS_FOLDER_NAME)
-        folder = "/data/training"
+        folder = os.path.join(self.project_folder, self._DATASETS_FOLDER_NAME)
+        #folder = "/data/training"
 
         if not os.path.exists(folder):
             os.makedirs(folder)

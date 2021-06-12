@@ -16,6 +16,8 @@ RUN pip install torch-cluster -f https://pytorch-geometric.com/whl/torch-1.8.1+c
 RUN pip install torch-spline-conv -f https://pytorch-geometric.com/whl/torch-1.8.1+cu111.html
 RUN pip install torch-geometric
 RUN pip install monai
+RUN apt update
+RUN apt install libgl1-mesa-glx
 # copy the content of the local src directory to the working directory
 #COPY src/ .
 

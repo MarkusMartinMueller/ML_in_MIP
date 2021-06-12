@@ -10,9 +10,10 @@ torch
 matplotlib
 addict
 nibabel
+tabulate
 comet-ml
 pypmi
-pyvista
+pyvista==0.30.1
 itkwidgets
 openpyxl
 monai

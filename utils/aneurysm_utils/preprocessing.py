@@ -12,6 +12,28 @@ import nibabel as nib
 
 import aneurysm_utils
 
+def intensity_segmentation(image : np.array,threshold :float) ->np.array:
+    """
+    Does a binary segmentation on an image depending on the intensity of the pixels, if the intentsity is bigger than the threshold its a vessel,
+    else its background
+    Parameters
+    ----------
+    image
+        The image to be segmented
+    threshold
+        The intensity threshold 
+    Returns
+    -------
+    numpy array
+        A mask for the vessel
+    
+    """
+    mask = copy.copy(image)
+    mask[mask >threshold] = 1
+
+    mask[mask<threshold] =0
+    return mask
+
 
 def resize_mri(img, size, interpolation=0):
     """Resize img to size. Interpolation between 0 (no interpolation) and 5 (maximum interpolation)."""

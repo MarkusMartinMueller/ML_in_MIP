@@ -107,6 +107,7 @@ def load_mri_images(
     prediction: str = "mask",
     mask: str = None,
     case_list: List[str] = None,
+    resample_voxel_dim: tuple = (1.5, 1.5, 1.5),
 ):
     """
     Load MRI images for a given dataframe.
@@ -134,13 +135,13 @@ def load_mri_images(
         nifti_orig = load_nifti(row["Path Orig"])
         if prediction in ["mask", "vessel"]:
             # nifti_mask = nib.load(row[DF_DICT[prediction]])
-            nifti_mask = load_nifti(row[DF_DICT[prediction]])
+            nifti_mask = load_nifti(row[DF_DICT[prediction]], resample_dim=resample_voxel_dim)
             labels.append(np.rint(nifti_mask))
             #values, count = np.unique(np.rint(nifti_mask), return_counts=True)
             #print(count, (count[1]/count[0]))
         else:
             labels.append(row[DF_DICT[prediction]])
-            nifti_labeled_mask = load_nifti(row["Path Labeled Mask"])
+            nifti_labeled_mask = load_nifti(row["Path Labeled Mask"], resample_dim=resample_voxel_dim)
             nifti_labeled_mask[nifti_labeled_mask != row["Labeled Mask Index"]] = 0
             # TODO: Add resample here
             nifti_orig *= nifti_labeled_mask
@@ -210,6 +211,7 @@ def split_mri_images(
     balance_data: bool = False,
     random_state: int = 0,
     print_stats: bool = True,
+    resample_voxel_dim: tuple = (1.5, 1.5, 1.5),
 ) -> Union[tuple, tuple, tuple, preprocessing.LabelEncoder]:
     """
     Load mri images for provided dataset and split into train, test, and validate.
@@ -259,6 +261,7 @@ def split_mri_images(
         df[prediction] = label_encoder.transform(df[DF_DICT[prediction]])
 
     # Split train and test set
+    print(len(df))
     df_train, df_test = train_test_split(
         df,
         test_size=test_size,
@@ -267,6 +270,7 @@ def split_mri_images(
     )
 
     # Split train and validation set
+    print(len(df_train))
     df_train, df_validation = train_test_split(
         df_train,
         test_size=(validation_size / (1 - test_size)),
@@ -280,9 +284,9 @@ def split_mri_images(
         )
 
     return (
-        load_mri_images(env, df_train, prediction)[:2],
-        load_mri_images(env, df_test, prediction)[:2],
-        load_mri_images(env, df_validation, prediction)[:2],
+        load_mri_images(env, df_train, prediction, resample_voxel_dim=resample_voxel_dim)[:2],
+        load_mri_images(env, df_test, prediction, resample_voxel_dim=resample_voxel_dim)[:2],
+        load_mri_images(env, df_validation, prediction, resample_voxel_dim=resample_voxel_dim)[:2],
         label_encoder
     )
 

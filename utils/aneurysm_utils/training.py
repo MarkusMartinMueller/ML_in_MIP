@@ -12,7 +12,8 @@ from torch.utils.data.dataloader import DataLoader
 from pytorch3dunet.unet3d.losses import BCEDiceLoss
 from monai.transforms import AsDiscrete, Compose
 from monai.handlers import MeanDice
-
+from torch_geometric.data import DataLoader as DataLoaderGeometric
+import aneurysm_utils
 from aneurysm_utils.environment import Experiment
 from aneurysm_utils.models import get_model
 from aneurysm_utils.utils import pytorch_utils
@@ -377,38 +378,60 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
     
     # TODO: use augmentation
 
-    train_dataset = pytorch_utils.PytorchDataset(
-        mri_imgs_train, labels_train, dtype=np.float64, segmentation=params.segmentation
-    )
-
+    if params.model_name != "SegNet":
+        train_dataset = pytorch_utils.PytorchDataset(
+            mri_imgs_train, labels_train, dtype=np.float64, segmentation=params.segmentation
+        )
+    else: 
+        train_dataset = pytorch_utils.PytorchgeometricDataset(
+            mri_imgs_train, 
+            labels_train, 
+            root="", 
+            save_dir=exp._env.datasets_folder,
+            transform=None,
+            pre_transform=None,
+            forceprocessing = False,
+        )
     sampler = None
     if params.sampler and params.sampler == "ImbalancedDatasetSampler2":
         sampler = pytorch_utils.ImbalancedDatasetSampler2(train_dataset)
-
+    
     #train_dataset.print_image()
-    if sampler is not None: 
-        train_loader = DataLoader(
-            train_dataset,
-            batch_size=params.batch_size,
-            num_workers=params.num_threads if params.num_threads else 0,
-            sampler=sampler,
-            pin_memory=params.use_cuda,
-        )
-
-    else:
-        train_loader = DataLoader(
+    if params.model_name == "SegNet":
+        train_loader = DataLoaderGeometric(
             train_dataset,
             batch_size=params.batch_size,
             shuffle=params.shuffle_train_set,
             num_workers=params.num_threads if params.num_threads else 0,
             pin_memory=params.use_cuda,
         )
+        validation_dataset = pytorch_utils.PytorchDataset(
+                mri_imgs_val, labels_val, dtype=np.float64, segmentation=params.segmentation
+            )
+        validation_dataset = pytorch_utils.PytorchgeometricDataset(
+            mri_imgs_val, 
+            labels_val, 
+            root="", 
+            save_dir=exp._env.datasets_folder,
+            transform=None,
+            pre_transform=None,
+            forceprocessing = False,
+        )
+    else:
+        train_loader = DataLoader(
+                train_dataset,
+                batch_size=params.batch_size,
+                shuffle=params.shuffle_train_set,
+                num_workers=params.num_threads if params.num_threads else 0,
+                pin_memory=params.use_cuda,
+            )
+        validation_dataset = pytorch_utils.PytorchDataset(
+                mri_imgs_val, labels_val, dtype=np.float64, segmentation=params.segmentation
+            )
 
 
     exp.log.info("Train dataset loaded. Length: " + str(len(train_loader.dataset)))
-    validation_dataset = pytorch_utils.PytorchDataset(
-        mri_imgs_val, labels_val, dtype=np.float64, segmentation=params.segmentation
-    )
+  
     val_loader = DataLoader(
         validation_dataset,
         batch_size=params.batch_size,  # TODO: use fixed batch size of 5

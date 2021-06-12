@@ -6,6 +6,7 @@ import torch
 import torch.utils.data
 from torch.utils.data import Dataset
 from torch_geometric.data import Dataset as Dataset_Geometric
+from aneurysm_utils.utils.point_cloud_utils import segmented_image_to_graph
 
 def predict(model, images: list, cuda=False, apply_softmax=True):
     predictions = []
@@ -124,10 +125,11 @@ class PytorchDataset(Dataset):
 
             
 class PytorchgeometricDataset(Dataset_Geometric):
-    def __init__(self, root,save_dir, downsample =True,transform=None, pre_transform=None,forceprocessing =False):
+    def __init__(self, mri_images, labels,  root,save_dir,transform=None, pre_transform=None,forceprocessing =False):
         self.forceprocessing = forceprocessing
         self.save_dir =save_dir
-        self.downsample = downsample
+        self.mri_images = mri_images
+        self.labels = labels
         super(PytorchgeometricDataset, self).__init__(root, transform, pre_transform)
         
     @property
@@ -146,36 +148,14 @@ class PytorchgeometricDataset(Dataset_Geometric):
     def processed_dir(self) -> str:
         return self.save_dir
     def process(self):
-        self.cases = set()
-        
 
-        for filename in os.listdir(self.root):
-            if filename.endswith(".nii.gz"):
-                self.cases.add(filename.split('_')[0])
-                #g = filename.split('_')[0]
-                #cases.setdefault(g, []).append(filename)
-        for idx,case in enumerate(self.cases):
-            try:
-                nib.load(self.root+ "/"+case+'_orig.nii.gz')
-            except:
-                print(f"Couldn't load {self.root}  /{case}_orig.nii.gz continue to next file")
-                continue
-            else:
-                torch.save(self.file_to_data(case), osp.join(self.save_dir, "data_{}.pt".format(idx)))
+        self.cases = set()
+        for idx, (image,label) in enumerate(zip(self.mri_images,self.labels)):
+            graph =segmented_image_to_graph(image,label)
+            torch.save(graph, os.path.join(self.save_dir, "data_{}.pt".format(idx)))
+
         self.forceprocessing=False     
 
-    def file_to_data(self,case):
-        
-        image = utils.min_max_normalize(nib.load(self.root+ "/"+case+'_orig.nii.gz').get_fdata())
-        image_aneursysm = nib.load(self.root + "/"+case+'_masks.nii.gz').get_fdata()
-        affine_image = nib.load(self.root+ "/"+case+'_orig.nii.gz').affine
-        affine_aneurysm = nib.load(self.root+ "/"+case+'_masks.nii.gz').affine
-        mask =utils.intensity_segmentation(image,0.34)
-        filtered= np.multiply(image,mask)
-        if self.downsample:
-            filtered =utils.downsample(filtered,affine_image)
-            image_aneursysm=utils.downsample(image_aneursysm,affine_aneurysm)
-        return utils.segmented_image_to_graph(filtered,image_aneursysm,filtered.shape)
         
 
 
@@ -184,7 +164,7 @@ class PytorchgeometricDataset(Dataset_Geometric):
 
     def get(self, idx):
         try:
-            data = torch.load(osp.join(self.processed_dir, 'data_{}.pt'.format(idx)))
+            data = torch.load(os.path.join(self.processed_dir, 'data_{}.pt'.format(idx)))
             return data
         except:
             print(f"Couldnt read data_{idx}.pt")
