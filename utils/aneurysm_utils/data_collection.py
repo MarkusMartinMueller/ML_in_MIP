@@ -132,7 +132,7 @@ def load_mri_images(
 
     for idx, row in tqdm.tqdm(df.iterrows(), total=len(df)):
         # nifti_orig = nib.load(row["Path Orig"])
-        nifti_orig = load_nifti(row["Path Orig"])
+        nifti_orig = load_nifti(row["Path Orig"], resample_dim=resample_voxel_dim)
         if prediction in ["mask", "vessel"]:
             # nifti_mask = nib.load(row[DF_DICT[prediction]])
             nifti_mask = load_nifti(row[DF_DICT[prediction]], resample_dim=resample_voxel_dim)

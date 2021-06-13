@@ -692,7 +692,7 @@ class Environment:
         """
         Returns the path to the datasets folder of the selected project.
         """
-        if self.project_folder == "/group/cake/":
+        if self.project_folder == "/group/cake/our-git-project":
             folder = "/data/training"
         else:
             folder = os.path.join(self.project_folder, self._DATASETS_FOLDER_NAME)

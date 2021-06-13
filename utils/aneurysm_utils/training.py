@@ -401,7 +401,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
             pin_memory=params.use_cuda,
         )
     else:
-        datasets_folder = exp._env.datasets_folder
+        datasets_folder = exp._env.project_folder
         train_dataset = pytorch_utils.PyTorchGeometricDataset(
             mri_images=mri_imgs_train,
             labels=labels_train,
