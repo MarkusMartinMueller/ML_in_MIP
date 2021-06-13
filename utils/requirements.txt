@@ -11,16 +11,16 @@ nibabel
 tabulate
 comet-ml
 pypmi
+pytorch-ignite==0.4.4
 pyvista==0.30.1
 itkwidgets
 openpyxl
 monai
 pytorch3dunet @ git+https://github.com/wolny/pytorch-3dunet.git
-torch==1.7.1
-torch-geometric==1.7.0
+torch
 torchvision
 torchaudio
 torch-sparse
 torch-cluster
 torch-scatter
-pytorch-ignite==0.4.4
+torch-geometric==1.7.0

@@ -28,8 +28,8 @@ def predict(model, images: list, cuda=False, apply_softmax=True):
             output_class = output.max(1)[1].data[0].item()
             output_probability = output.max(1)[0].data[0].item()
         except ValueError:
-            output_class = output.max(1)[1].data[0].numpy()
-            output_probability = output.max(1)[0].data[0].numpy()
+            output_class = output.max(1)[1].data[0].cpu().numpy()
+            output_probability = output.max(1)[0].data[0].cpu().numpy()
         predictions.append((output_class, output_probability))
     return predictions
 

@@ -19,7 +19,7 @@ def prepare_batch(
             convert_tensor(y, device=device, non_blocking=non_blocking),
         )
     except ValueError:
-        batch_tensor, pos, x, y = batch
+        batch_tensor, pos, ptr, x, y = batch
         batch_tensor = convert_tensor(
             batch_tensor, device=device, non_blocking=non_blocking
         )[1]

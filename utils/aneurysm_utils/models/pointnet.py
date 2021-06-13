@@ -3,12 +3,13 @@ import torch
 import torch.nn.functional as F
 from torch.nn import Sequential as Seq, Linear as Lin, ReLU, BatchNorm1d as BN
 import torch_geometric.transforms as T
-from torch_geometric.data import DataLoader,Data
+from torch_geometric.data import DataLoader, Data
 from torch_geometric.nn import PointConv, fps, radius, global_max_pool
 from torch_geometric.nn import knn_interpolate
 import nibabel as nib
 from pathlib import Path
 import numpy as np
+
 
 class SAModule(torch.nn.Module):
     def __init__(self, ratio, r, nn):
@@ -19,13 +20,13 @@ class SAModule(torch.nn.Module):
 
     def forward(self, x, pos, batch):
         idx = fps(pos, batch, ratio=self.ratio)
-        row, col = radius(pos, pos[idx], self.r, batch, batch[idx],
-                          max_num_neighbors=64)
+        row, col = radius(
+            pos, pos[idx], self.r, batch, batch[idx], max_num_neighbors=64
+        )
         edge_index = torch.stack([col, row], dim=0)
         x = self.conv(x, (pos, pos[idx]), edge_index)
         pos, batch = pos[idx], batch[idx]
         return x, pos, batch
-
 
 
 class GlobalSAModule(torch.nn.Module):
@@ -42,10 +43,12 @@ class GlobalSAModule(torch.nn.Module):
 
 
 def MLP(channels, batch_norm=True):
-    return Seq(*[
-        Seq(Lin(channels[i - 1], channels[i]), ReLU(), BN(channels[i]))
-        for i in range(1, len(channels))
-    ])
+    return Seq(
+        *[
+            Seq(Lin(channels[i - 1], channels[i]), ReLU(), BN(channels[i]))
+            for i in range(1, len(channels))
+        ]
+    )
 
 
 class FPModule(torch.nn.Module):
@@ -53,7 +56,7 @@ class FPModule(torch.nn.Module):
         super(FPModule, self).__init__()
         self.k = k
         self.nn = nn
-    
+
     def forward(self, x, pos, batch, x_skip, pos_skip, batch_skip):
         x = knn_interpolate(x, pos, pos_skip, batch, batch_skip, k=self.k)
         if x_skip is not None:
@@ -78,7 +81,7 @@ class SegNet(torch.nn.Module):
         self.lin2 = torch.nn.Linear(128, 128)
         self.lin3 = torch.nn.Linear(128, num_classes)
 
-    def forward(self, data, get_seg:bool = False):
+    def forward(self, data, get_seg: bool = False):
         sa0_out = (data["x"], data["pos"], data["batch"])
         sa1_out = self.sa1_module(*sa0_out)
         sa2_out = self.sa2_module(*sa1_out)
@@ -96,9 +99,5 @@ class SegNet(torch.nn.Module):
         if self.training:
             return torch.squeeze(x)
         else:
-            x= torch.round(torch.sigmoid(torch.squeeze(x)))
-            return Data(x=x,pos=torch.squeeze(pos))
-    
-            
-
-
+            x = torch.round(torch.sigmoid(torch.squeeze(x)))
+            return Data(x=x, pos=torch.squeeze(pos))

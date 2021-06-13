@@ -98,10 +98,12 @@ env.print_info()
 
 dataset_params = {
     "prediction": "vessel",
-    "mri_data_selection": "unprocessed", 
+    "mri_data_selection": "unprocessed",
     "balance_data": False,
-    "seed": 1
+    "seed": 1,
+    "resample_voxel_dim": (1.5, 1.5, 1.5)
 }
+
 
 preprocessing_params = {
     'min_max_normalize': True,
@@ -248,11 +250,11 @@ artifacts = {
 # Define parameter configuration for experiment run
 params = {
     "batch_size": 3,
-    "epochs": 200,
+    "epochs": 1,
     "learning_rate": 5.0e-3, # 3e-04, 1.0E-5
     "es_patience": None, # None = deactivate early stopping
     "weight_decay": 0.001, # 1e-3
-    "model_name": 'MonaiUnet',
+    "model_name": 'SimpleCNN3D',
     "optimizer_momentum": 0.9,
     "optimizer":'Adam',
     "criterion": "CrossEntropyLoss", 

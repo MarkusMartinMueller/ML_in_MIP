@@ -114,6 +114,7 @@ preprocessing_params = {
     'min_max_normalize': True,
     'mean_std_normalize': False,
     'smooth_img': False, # can contain a number: smoothing factor
+    'intensity_segmentation': 0.35
 }
 
 
@@ -268,7 +269,7 @@ params = {
     "shuffle_train_set": True,
     "scheduler": "ReduceLROnPlateau", # "ReduceLROnPlateau",
     "save_models": False,
-    "debug": True,
+    "debug": False,
 }
 
 params.update(dataset_params)

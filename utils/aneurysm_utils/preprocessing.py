@@ -5,6 +5,7 @@ import tqdm
 import nilearn
 import numpy as np
 import scipy as sp
+import copy
 from nilearn.image import load_img, new_img_like, resample_to_img
 from addict import Dict
 import matplotlib.pyplot as plt
@@ -13,7 +14,7 @@ import nibabel as nib
 import aneurysm_utils
 
 
-def intensity_segmentation(image: np.array, threshold: float) -> np.array:
+def intensity_segmentation(mri_imgs: List[np.memmap], threshold: float) -> np.array:
     """
     Does a binary segmentation on an image depending on the intensity of the pixels, if the intentsity is bigger than the threshold its a vessel,
     else its background
@@ -29,11 +30,13 @@ def intensity_segmentation(image: np.array, threshold: float) -> np.array:
         A mask for the vessel
 
     """
-    mask = copy.copy(image)
-    mask[mask > threshold] = 1
-
-    mask[mask < threshold] = 0
-    return mask
+    segmented = []
+    for image in mri_imgs:
+        mask = copy.copy(image)
+        mask[mask > threshold] = 1
+        mask[mask < threshold] = 0
+        segmented.append(mask)
+    return segmented
 
 
 def resize_mri(img, size, interpolation=0):
@@ -269,5 +272,8 @@ def preprocess(
     if params.min_max_normalize:
         env.log.info("Preprocessing: Min Max Normalize...")
         mri_imgs = min_max_normalize(mri_imgs)
+    if params.get("intensity_segmentation"):
+        env.log.info("Preprocessing: Intensity Segmentation...")
+        mri_imgs = intensity_segmentation(mri_imgs, params.get("intensity_segmentation"))
 
     return mri_imgs
