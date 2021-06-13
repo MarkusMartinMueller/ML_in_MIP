@@ -269,7 +269,7 @@ params = {
     "shuffle_train_set": True,
     "scheduler": "ReduceLROnPlateau", # "ReduceLROnPlateau",
     "save_models": False,
-    "debug": False,
+    "debug": True,
 }
 
 params.update(dataset_params)

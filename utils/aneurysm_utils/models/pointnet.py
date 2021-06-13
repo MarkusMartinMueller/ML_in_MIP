@@ -96,8 +96,11 @@ class SegNet(torch.nn.Module):
         x = self.lin2(x)
         x = F.dropout(x, p=0.5, training=self.training)
         x = self.lin3(x)
+        return torch.squeeze(x)
+        """
         if self.training:
-            return torch.squeeze(x)
+            
         else:
             x = torch.round(torch.sigmoid(torch.squeeze(x)))
             return Data(x=x, pos=torch.squeeze(pos))
+        """

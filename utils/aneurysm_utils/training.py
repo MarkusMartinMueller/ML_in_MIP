@@ -374,7 +374,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
     # Initialize data loaders
 
     # TODO: use augmentation
-    #assert params.sampler is not None, "Sampler is not implemented"
+    # assert params.sampler is not None, "Sampler is not implemented"
 
     if params.model_name != "SegNet":
         train_dataset = pytorch_utils.PytorchDataset(
@@ -527,13 +527,15 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
         #  }
         output_transform = lambda x: (
             x[0],
-            torch.squeeze(x[1], 1),
+            torch.squeeze(x[1]),  # torch.squeeze(x[1], 1),
         )  # (torch.flatten(x[0], start_dim=1), torch.flatten(x[1], start_dim=1))
     else:
         output_transform = None
 
     # trainer and evaluator
-    trainer = create_supervised_trainer(model, optimizer, criterion, device=device, prepare_batch=prepare_batch)
+    trainer = create_supervised_trainer(
+        model, optimizer, criterion, device=device, prepare_batch=prepare_batch
+    )
     evaluator = create_supervised_evaluator(
         model,
         metrics={
@@ -545,6 +547,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
             ),
         },
         device=device,
+        prepare_batch=prepare_batch,
     )
 
     # Add learning rate scheduler

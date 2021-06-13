@@ -18,10 +18,10 @@ def segmented_image_to_graph(image: np.array, image_mask: np.array):
     torch_geometric.data.Data
         contains the graph
     """
-    labels = torch.tensor(np.ndarray.flatten(image_mask[image != 0]), dtype=torch.float)
+    labels = torch.tensor(np.ndarray.flatten(image_mask[image != 0]), dtype=torch.long)
     coordinates = torch.tensor(np.where(image != 0), dtype=torch.float)
     coordinates = torch.transpose(coordinates, 0, 1)
-    intensity_values = torch.tensor(np.ndarray.flatten(image[image != 0]), dtype=torch.float)
+    intensity_values = torch.unsqueeze(torch.tensor(np.ndarray.flatten(image[image != 0]), dtype=torch.float), 1)
     return Data(x=intensity_values, pos=coordinates, y=labels)
 
 
