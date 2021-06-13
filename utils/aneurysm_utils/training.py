@@ -61,6 +61,7 @@ def train_sklearn_model(exp, params, artifacts):
         "PassiveAggressiveClassifier",
         "GaussianProcessClassifier",
         "ComplementNB",
+        "DBSCAN",
     ]
 
     if params.model_name == "SVC":
@@ -111,6 +112,10 @@ def train_sklearn_model(exp, params, artifacts):
         model = GaussianProcessClassifier(
             random_state=params.seed, n_jobs=params.n_jobs
         )
+    elif params.model_name == "DBSCAN":
+        from sklearn.cluster import DBSCAN
+        model = DBSCAN(eps=0.3, min_samples=100)
+
     elif params.model_name == "ComplementNB":
         from sklearn.naive_bayes import ComplementNB
 
