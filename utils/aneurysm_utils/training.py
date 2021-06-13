@@ -4,8 +4,7 @@ import torch.nn as nn
 import torch.utils.data
 from addict import Dict
 import os
-from ignite.engine import (Events, create_supervised_evaluator,
-                           create_supervised_trainer)
+from ignite.engine import Events, create_supervised_evaluator, create_supervised_trainer
 from ignite.handlers import EarlyStopping, ModelCheckpoint
 from ignite.metrics import Accuracy, ConfusionMatrix, Loss, Recall, IoU, DiceCoefficient
 from torch.utils.data.dataloader import DataLoader
@@ -18,7 +17,7 @@ from aneurysm_utils.environment import Experiment
 from aneurysm_utils.models import get_model
 from aneurysm_utils.utils import pytorch_utils
 from aneurysm_utils import evaluation
-from aneurysm_utils.utils.ignite_utils import IntersectionOverUnion
+from aneurysm_utils.utils.ignite_utils import prepare_batch
 
 # -------------------------- Train model ---------------------------------
 
@@ -30,7 +29,7 @@ def train_sklearn_model(exp, params, artifacts):
     mri_imgs_test, labels_test = None, None
     if "test_data" in artifacts:
         mri_imgs_test, labels_test = artifacts["test_data"]
-    
+
     params = Dict(params)
 
     if not params.seed:
@@ -70,7 +69,7 @@ def train_sklearn_model(exp, params, artifacts):
 
         if not params.C:
             params.C = 1.0
-        
+
         if not params.kernel:
             params.kernel = "rbf"
 
@@ -87,7 +86,7 @@ def train_sklearn_model(exp, params, artifacts):
     if params.model_name == "GridSearchSVC":
         if not params.gamma:
             params.gamma = "auto"
-        
+
         from sklearn.svm import SVC
 
         svc = SVC(gamma=params.gamma, class_weight=params.class_weight, verbose=2)
@@ -108,14 +107,13 @@ def train_sklearn_model(exp, params, artifacts):
         )
     elif params.model_name == "GaussianProcessClassifier":
         from sklearn.gaussian_process import GaussianProcessClassifier
-        
+
         model = GaussianProcessClassifier(
-            random_state=params.seed,
-            n_jobs=params.n_jobs
+            random_state=params.seed, n_jobs=params.n_jobs
         )
     elif params.model_name == "ComplementNB":
         from sklearn.naive_bayes import ComplementNB
-        
+
         model = ComplementNB()
     elif params.model_name == "SGDClassifier":
 
@@ -190,10 +188,10 @@ def train_sklearn_model(exp, params, artifacts):
     elif params.model_name == "PassiveAggressiveClassifier":
         if not params.loss:
             params.loss = "hinge"
-        
+
         if not params.C:
             params.C = 1.0
-        
+
         from sklearn.linear_model import PassiveAggressiveClassifier
 
         # Create the estimator object
@@ -224,11 +222,11 @@ def train_sklearn_model(exp, params, artifacts):
             verbose=True,
             max_evals=50,
             refit=False,
-            #classifier=any_sparse_classifier("my_clf"),
-            classifier=any_classifier('my_clf'),
-            preprocessing=any_preprocessing('my_pre'),
-            #classifier=any_sparse_classifier("my_clf"),
-            #classifier=random_forest("my-model", n_jobs=params.n_jobs, verbose=True)
+            # classifier=any_sparse_classifier("my_clf"),
+            classifier=any_classifier("my_clf"),
+            preprocessing=any_preprocessing("my_pre"),
+            # classifier=any_sparse_classifier("my_clf"),
+            # classifier=random_forest("my-model", n_jobs=params.n_jobs, verbose=True)
             # classifier=any_sparse_classifier("my_clf"),
             # trial_timeout=5000,
         )
@@ -243,37 +241,37 @@ def train_sklearn_model(exp, params, artifacts):
 
     exp.log.info("Training finished.")
     from sklearn.metrics import accuracy_score
-    
+
     with exp.comet_exp.validate():
         y_pred = model.predict([mri_img.flatten() for mri_img in mri_imgs_val])
 
         accuracy = accuracy_score(labels_val, y_pred)
         exp.log.info("Validation Accuracy: " + str(accuracy))
-        
+
         exp.comet_exp.log_metrics(evaluation.evaluate_model(labels_val, y_pred))
-        
+
         from sklearn.metrics import confusion_matrix
 
         exp.comet_exp.log_confusion_matrix(
             matrix=confusion_matrix(labels_val, y_pred).tolist(),
-            file_name="confusion-matrix-validate.json"
+            file_name="confusion-matrix-validate.json",
         )
 
     if mri_imgs_test is not None:
-        # Only run test of 
+        # Only run test of
         with exp.comet_exp.test():
             y_pred = model.predict([mri_img.flatten() for mri_img in mri_imgs_test])
 
             accuracy = accuracy_score(labels_test, y_pred)
             exp.log.info("Test Accuracy: " + str(accuracy))
-        
+
             exp.comet_exp.log_metrics(evaluation.evaluate_model(labels_test, y_pred))
 
             from sklearn.metrics import confusion_matrix
 
             exp.comet_exp.log_confusion_matrix(
                 matrix=confusion_matrix(labels_test, y_pred).tolist(),
-                file_name="confusion-matrix-test.json"
+                file_name="confusion-matrix-test.json",
             )
 
     if params.save_models:
@@ -281,7 +279,9 @@ def train_sklearn_model(exp, params, artifacts):
 
         dump(model, os.path.join(exp.output_path, params.model_name + ".joblib"))
 
+
 ## -------------------------- Pytorch ------------------------------
+
 
 def train_pytorch_model(exp: Experiment, params, artifacts):
     # new SummaryWriter for new experiment
@@ -294,7 +294,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
     mri_imgs_test, labels_test = None, None
     if "test_data" in artifacts:
         mri_imgs_test, labels_test = artifacts["test_data"]
-    
+
     params = Dict(params)
 
     # check params and set basic values
@@ -321,7 +321,9 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
 
     if not params.num_classes:
         try:
-            params.num_classes = len(np.unique(np.concatenate(labels_train).astype(int)))
+            params.num_classes = len(
+                np.unique(np.concatenate(labels_train).astype(int))
+            )
         except TypeError:
             params.num_classes = len(set(labels_train))
         print("Number of Classes", params.num_classes)
@@ -342,7 +344,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
 
     if not params.dropout:
         params.dropout = 0.0
-    
+
     if not params.dropout2:
         params.dropout2 = 0.0
 
@@ -360,45 +362,28 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
     else:
         params.segmentation = None
 
-       
-    
     # Get Model Architecture
     model, model_params = get_model(params)
-    
     exp.artifacts["model"] = model
 
-    
     # print('number of trainable parameters =', count_parameters(model))
-    
+
     # Log all params to comet
     exp.comet_exp.log_parameters(params.to_dict())
 
-
     # Initialize data loaders
-    
+
     # TODO: use augmentation
+    #assert params.sampler is not None, "Sampler is not implemented"
 
     if params.model_name != "SegNet":
         train_dataset = pytorch_utils.PytorchDataset(
-            mri_imgs_train, labels_train, dtype=np.float64, segmentation=params.segmentation
+            mri_imgs_train,
+            labels_train,
+            dtype=np.float64,
+            segmentation=params.segmentation,
         )
-    else: 
-        train_dataset = pytorch_utils.PytorchgeometricDataset(
-            mri_imgs_train, 
-            labels_train, 
-            root="", 
-            save_dir=exp._env.datasets_folder,
-            transform=None,
-            pre_transform=None,
-            forceprocessing = False,
-        )
-    sampler = None
-    if params.sampler and params.sampler == "ImbalancedDatasetSampler2":
-        sampler = pytorch_utils.ImbalancedDatasetSampler2(train_dataset)
-    
-    #train_dataset.print_image()
-    if params.model_name == "SegNet":
-        train_loader = DataLoaderGeometric(
+        train_loader = DataLoader(
             train_dataset,
             batch_size=params.batch_size,
             shuffle=params.shuffle_train_set,
@@ -406,67 +391,88 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
             pin_memory=params.use_cuda,
         )
         validation_dataset = pytorch_utils.PytorchDataset(
-                mri_imgs_val, labels_val, dtype=np.float64, segmentation=params.segmentation
-            )
-        validation_dataset = pytorch_utils.PytorchgeometricDataset(
-            mri_imgs_val, 
-            labels_val, 
-            root="", 
-            save_dir=exp._env.datasets_folder,
-            transform=None,
-            pre_transform=None,
-            forceprocessing = False,
+            mri_imgs_val, labels_val, dtype=np.float64, segmentation=params.segmentation
+        )
+        val_loader = DataLoader(
+            validation_dataset,
+            batch_size=params.batch_size,  # TODO: use fixed batch size of 5
+            shuffle=False,
+            num_workers=params.num_threads if params.num_threads else 0,
+            pin_memory=params.use_cuda,
         )
     else:
-        train_loader = DataLoader(
-                train_dataset,
-                batch_size=params.batch_size,
-                shuffle=params.shuffle_train_set,
-                num_workers=params.num_threads if params.num_threads else 0,
-                pin_memory=params.use_cuda,
-            )
-        validation_dataset = pytorch_utils.PytorchDataset(
-                mri_imgs_val, labels_val, dtype=np.float64, segmentation=params.segmentation
-            )
+        datasets_folder = exp._env.datasets_folder
+        train_dataset = pytorch_utils.PyTorchGeometricDataset(
+            mri_images=mri_imgs_train,
+            labels=labels_train,
+            root=datasets_folder,
+            split="train",
+        )
+        val_dataset = pytorch_utils.PyTorchGeometricDataset(
+            mri_images=mri_imgs_val,
+            labels=labels_val,
+            root=datasets_folder,
+            split="val",
+        )
+        test_dataset = pytorch_utils.PyTorchGeometricDataset(
+            mri_images=mri_imgs_test,
+            labels=labels_test,
+            root=datasets_folder,
+            split="test",
+        )
+        train_loader = DataLoaderGeometric(
+            train_dataset,
+            batch_size=params.batch_size,
+            shuffle=params.shuffle_train_set,
+            num_workers=params.num_threads if params.num_threads else 0,
+            pin_memory=params.use_cuda,
+        )
+        val_loader = DataLoaderGeometric(
+            val_dataset,
+            batch_size=params.batch_size,
+            shuffle=False,
+            num_workers=params.num_threads if params.num_threads else 0,
+            pin_memory=params.use_cuda,
+        )
 
+    # train_dataset.print_image()
 
     exp.log.info("Train dataset loaded. Length: " + str(len(train_loader.dataset)))
-  
-    val_loader = DataLoader(
-        validation_dataset,
-        batch_size=params.batch_size,  # TODO: use fixed batch size of 5
-        shuffle=False,
-        num_workers=params.num_threads if params.num_threads else 0,
-        pin_memory=params.use_cuda,
-    )
+
     exp.log.info("Validation dataset loaded. Length: " + str(len(val_loader.dataset)))
 
     device = torch.device("cuda" if params.use_cuda else "cpu")
 
     if params.criterion == "CrossEntropyLoss":
         if params.criterion_weights:
-            criterion = nn.CrossEntropyLoss(weight=torch.FloatTensor(params.criterion_weights).to(device))
+            criterion = nn.CrossEntropyLoss(
+                weight=torch.FloatTensor(params.criterion_weights).to(device)
+            )
         else:
             criterion = nn.CrossEntropyLoss()
 
     elif params.criterion == "BCEWithLogitsLoss":
         if params.criterion_weights:
-            criterion = nn.BCEWithLogitsLoss(weight=torch.FloatTensor(params.criterion_weights).to(device))
+            criterion = nn.BCEWithLogitsLoss(
+                weight=torch.FloatTensor(params.criterion_weights).to(device)
+            )
         else:
             criterion = nn.BCEWithLogitsLoss()
 
     elif params.criterion == "BCELoss":
         if params.criterion_weights:
-            criterion = nn.BCELoss(weight=torch.FloatTensor(params.criterion_weights).to(device))
+            criterion = nn.BCELoss(
+                weight=torch.FloatTensor(params.criterion_weights).to(device)
+            )
         else:
             criterion = nn.BCELoss()
-        
+
     elif params.criterion == "MultiLabelMarginLoss":
         criterion = nn.MultiLabelMarginLoss()
-    
-    elif params.criterion == 'BCEDiceLoss':
-        #alpha = loss_config.get('alphs', 1.)
-        #beta = loss_config.get('beta', 1.)
+
+    elif params.criterion == "BCEDiceLoss":
+        # alpha = loss_config.get('alphs', 1.)
+        # beta = loss_config.get('beta', 1.)
         criterion = BCEDiceLoss(1, 1)
 
     else:
@@ -475,88 +481,102 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
     if params.use_cuda:
         # TODO: required?
         criterion = criterion.cuda()
-    
+
     if params.pretrain_path:
         model_params = [
-            {'params': filter(lambda p: p.requires_grad, model_params['base_parameters']), 'lr': params.learning_rate},
-            {'params': filter(lambda p: p.requires_grad, model_params['new_parameters']), 'lr': params.learning_rate*10}
+            {
+                "params": filter(
+                    lambda p: p.requires_grad, model_params["base_parameters"]
+                ),
+                "lr": params.learning_rate,
+            },
+            {
+                "params": filter(
+                    lambda p: p.requires_grad, model_params["new_parameters"]
+                ),
+                "lr": params.learning_rate * 10,
+            },
         ]
     else:
         pass
-        #model_params = [{'params': filter(lambda p: p.requires_grad, model_params), 'lr': params.learning_rate}]
-        
+        # model_params = [{'params': filter(lambda p: p.requires_grad, model_params), 'lr': params.learning_rate}]
+
     optimizer: torch.optim.Optimizer
 
     if params.optimizer == "SGD":
         optimizer = torch.optim.SGD(
-            model_params, 
-            lr=params.learning_rate, 
+            model_params,
+            lr=params.learning_rate,
             momentum=params.optimizer_momentum,
-            weight_decay=params.weight_decay
+            weight_decay=params.weight_decay,
         )
     elif params.optimizer == "Adam":
         optimizer = torch.optim.Adam(
-            model_params, 
-            lr=params.learning_rate, 
-            weight_decay=params.weight_decay
+            model_params, lr=params.learning_rate, weight_decay=params.weight_decay
         )
     else:
         raise ValueError("Unknown optimizer: " + str(params.optimizer))
         print(params.segmentation)
     if params.segmentation:
-        #post_pred = Compose(
-              #  [AsDiscrete(threshold_values=True)])
-        #output_transform=lambda x, y, y_pred: (y_pred, y)
-        #val_metrics = {
-         #   "Mean_Dice": MeanDice(), 
-          #  "loss": Loss(criterion),
-          #  }
-        output_transform = lambda x : (x[0], torch.squeeze(x[1], 1)) #(torch.flatten(x[0], start_dim=1), torch.flatten(x[1], start_dim=1))
+        # post_pred = Compose(
+        #  [AsDiscrete(threshold_values=True)])
+        # output_transform=lambda x, y, y_pred: (y_pred, y)
+        # val_metrics = {
+        #   "Mean_Dice": MeanDice(),
+        #  "loss": Loss(criterion),
+        #  }
+        output_transform = lambda x: (
+            x[0],
+            torch.squeeze(x[1], 1),
+        )  # (torch.flatten(x[0], start_dim=1), torch.flatten(x[1], start_dim=1))
     else:
         output_transform = None
-        
-    
+
     # trainer and evaluator
-    trainer = create_supervised_trainer(model, optimizer, criterion, device=device)
+    trainer = create_supervised_trainer(model, optimizer, criterion, device=device, prepare_batch=prepare_batch)
     evaluator = create_supervised_evaluator(
         model,
         metrics={
-            "accuracy": Accuracy(), #output_transform=output_transform, is_multilabel=True
+            "accuracy": Accuracy(),  # output_transform=output_transform, is_multilabel=True
             "loss": Loss(criterion),
             "recall": Recall(),
-            "confusion_matrix": ConfusionMatrix(params.num_classes, output_transform=output_transform),
+            "confusion_matrix": ConfusionMatrix(
+                params.num_classes, output_transform=output_transform
+            ),
         },
         device=device,
     )
-    
+
     # Add learning rate scheduler
     # from ignite.contrib.handlers import LRScheduler
-    #scheduler = LRScheduler(lr_scheduler=torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer, gamma=0.98))
+    # scheduler = LRScheduler(lr_scheduler=torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer, gamma=0.98))
     # scheduler = LRScheduler(torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer, mode='min', factor=0.2, patience=10))
-    
+
     # Attach to the trainer
-    #trainer.add_event_handler(Events.ITERATION_STARTED, scheduler)
+    # trainer.add_event_handler(Events.ITERATION_STARTED, scheduler)
     if not params.scheduler:
         # Dont use any scheduler
         pass
     elif params.scheduler == "ReduceLROnPlateau":
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer, mode='min', factor=0.5, patience=10)
-    
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer=optimizer, mode="min", factor=0.5, patience=10
+        )
+
         @evaluator.on(Events.COMPLETED)
         def reduce_lr(engine):
             # Execute after every validation
             # engine is evaluator
             # engine.metrics is a dict with metrics, e.g. {"loss": val_loss_value, "acc": val_acc_value}
-            scheduler.step(evaluator.state.metrics['loss'])
-            exp.log.info("Learning rate: " + str(optimizer.param_groups[0]['lr']))
+            scheduler.step(evaluator.state.metrics["loss"])
+            exp.log.info("Learning rate: " + str(optimizer.param_groups[0]["lr"]))
+
     else:
         raise ValueError("Unknown scheduler: " + str(params.scheduler))
-
 
     def score_function(engine):
         accuracy = evaluator.state.metrics["accuracy"]
         return accuracy
-    
+
     if params.es_patience:
         # Only activate early stopping if patience is provided
         handler = EarlyStopping(
@@ -627,9 +647,11 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
                 {"accuracy": acc, "bal_acc": bal_acc, "spec": spec, "sen": sen},
                 epoch=engine.state.epoch,
             )
-            exp.comet_exp.log_confusion_matrix(matrix=conf_matrix.tolist(), 
-                                               step=engine.state.epoch, 
-                                               file_name="confusion-matrix-" + str(engine.state.epoch) + ".json")
+            exp.comet_exp.log_confusion_matrix(
+                matrix=conf_matrix.tolist(),
+                step=engine.state.epoch,
+                file_name="confusion-matrix-" + str(engine.state.epoch) + ".json",
+            )
             """
             summary_writer.add_scalar("valdation/acc", acc, engine.state.epoch)
             summary_writer.add_scalar("valdation/avg_loss", avg_nll, engine.state.epoch)
@@ -653,13 +675,19 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
         trainer.add_event_handler(
             Events.EPOCH_COMPLETED, checkpointer, {params.model_name: model}
         )
-    
+
     trainer.run(train_loader, max_epochs=params.epochs)
-    
+
     if mri_imgs_test is not None:
         with exp.comet_exp.test():
-            pred_classes, pred_scores = zip(*pytorch_utils.predict(model, mri_imgs_test, cuda=params.use_cuda))
-            exp.comet_exp.log_metrics(evaluation.evaluate_model(labels_test, pred_classes, params.segmentation))
+            pred_classes, pred_scores = zip(
+                *pytorch_utils.predict(model, mri_imgs_test, cuda=params.use_cuda)
+            )
+            exp.comet_exp.log_metrics(
+                evaluation.evaluate_model(
+                    labels_test, pred_classes, params.segmentation
+                )
+            )
 
     # TODO not really needed?
     exp.comet_exp.end()

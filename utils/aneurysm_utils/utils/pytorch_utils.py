@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torch.utils.data
 from torch.utils.data import Dataset
-from torch_geometric.data import Dataset as Dataset_Geometric
+from torch_geometric.data import InMemoryDataset 
 from aneurysm_utils.utils.point_cloud_utils import segmented_image_to_graph
 
 def predict(model, images: list, cuda=False, apply_softmax=True):
@@ -123,11 +123,11 @@ class PytorchDataset(Dataset):
             )
             plt.show()
 
-            
+"""
 class PytorchgeometricDataset(Dataset_Geometric):
-    def __init__(self, mri_images, labels,  root,save_dir,transform=None, pre_transform=None,forceprocessing =False):
+    def __init__(self, mri_images, labels, root, save_dir, split="train", transform=None, pre_transform=None,forceprocessing =False):
         self.forceprocessing = forceprocessing
-        self.save_dir =save_dir
+        self.save_dir = save_dir
         self.mri_images = mri_images
         self.labels = labels
         super(PytorchgeometricDataset, self).__init__(root, transform, pre_transform)
@@ -137,27 +137,22 @@ class PytorchgeometricDataset(Dataset_Geometric):
         if os.path.exists(self.processed_dir) and not self.forceprocessing:
             return ([file for file in os.listdir(self.processed_dir) if file.startswith("data")])
         else:
-
             return []
     @property
     def raw_file_names(self):
         return os.listdir(self.root)
-
     
     @property
     def processed_dir(self) -> str:
         return self.save_dir
+
     def process(self):
 
         self.cases = set()
         for idx, (image,label) in enumerate(zip(self.mri_images,self.labels)):
             graph =segmented_image_to_graph(image,label)
-            torch.save(graph, os.path.join(self.save_dir, "data_{}.pt".format(idx)))
-
+            torch.save(graph, os.path.join(self.save_dir, "data_{}_{}.pt".format(idx, split)))
         self.forceprocessing=False     
-
-        
-
 
     def len(self):
         return len(self.processed_file_names)
@@ -169,6 +164,53 @@ class PytorchgeometricDataset(Dataset_Geometric):
         except:
             print(f"Couldnt read data_{idx}.pt")
             return None
+"""
+
+class PyTorchGeometricDataset(InMemoryDataset):
+
+    def __init__(
+        self,
+        root,  # env. dataset folder 
+        mri_images,
+        labels,
+        split="train",
+        force_processing=True,
+        transform=None,
+        pre_transform=None
+    ):
+        self.split = split
+        self.mri_images = mri_images
+        self.labels = labels
+        self.force_processing = force_processing
+        assert split in ["train", "test", "val"]
+        super(InMemoryDataset, self).__init__(root, transform, pre_transform)
+        path = os.path.join(self.processed_dir, f"{self.split}.pt")
+        self.data, self.slices = torch.load(path)
+
+    @property
+    def raw_file_names(self):
+        # List of files in the raw_dir in order to skip the download
+        return os.listdir(self.root)
+
+    @property
+    def processed_file_names(self):
+        # List of files in the processed_dir in order to skip the download
+        return (
+            ["force_processing"] if self.force_processing else ["train.pt", "test.pt", "val.pt"]
+        )
+
+    def process(self):
+        """ Transform numpy arrays into point clouds and stores them. """
+
+        dataset = []
+        for idx, (image, label) in enumerate(zip(self.mri_images, self.labels)):
+            graph = segmented_image_to_graph(image, label)
+            
+            dataset.append(graph)
+
+        torch.save(
+            self.collate(dataset), os.path.join(self.processed_dir, f"{self.split}.pt")
+        )
 
 # -------------------------- Samplers ---------------------------------
 

@@ -1,25 +1,25 @@
 #!/usr/bin/env python
 # coding: utf-8
-
+# %%
 # # First Rupture Risk Experiment <a class="tocSkip">
 
-# In this notebook, I wanna test a simple CNN model to pretict the rupture risk of an aneurysm. 
-# 
-# TODO: estimate risk of every aneurysm in 
-# 
+# In this notebook, I wanna test a simple CNN model to pretict the rupture risk of an aneurysm.
+#
+# TODO: estimate risk of every aneurysm in
+#
 # **In this notebook:**
-# 
+#
 # * Describe your notbeook here in a few bullet points, e.g.:
 # * Method xyz on dataset abc --> Key insight: xyz works pretty well
 # * Modification zyx --> Dead end
-# 
+#
 # **Todo:**
-# 
+#
 # * List all todos that are related to this notebook here, e.g.:
 # * Apply xyz to another dataset
-# 
+#
 # This could be some more general information on method xyz (e.g. a link to a paper).
-# 
+#
 # _Please use a Python 3 kernel for the notebook_
 
 # ## Dependencies
@@ -27,7 +27,7 @@
 
 # ### Install Dependencies
 
-# In[1]:
+# %%
 
 
 # It should be possible to run the notebook independent of anything else. 
@@ -40,22 +40,23 @@
 
 # ### Import Dependencies
 
-# In[2]:
-
-
+# %%
 # System libraries
-#from __future__ import absolute_import, division, print_function
+# from __future__ import absolute_import, division, print_function
 import logging, os, sys
 
 # Enable logging
-logging.basicConfig(format='[%(levelname)s] %(message)s', level=logging.INFO, stream=sys.stdout)
+logging.basicConfig(
+    format="[%(levelname)s] %(message)s", level=logging.INFO, stream=sys.stdout
+)
 
 # Re-import packages if they change
-#get_ipython().run_line_magic('load_ext', 'autoreload')
-#get_ipython().run_line_magic('autoreload', '2')
+# get_ipython().run_line_magic('load_ext', 'autoreload')
+# get_ipython().run_line_magic('autoreload', '2')
 
 # Intialize tqdm to always use the notebook progress bar
 import tqdm
+
 tqdm.tqdm = tqdm.tqdm_notebook
 
 # Third-party libraries
@@ -64,9 +65,10 @@ import pandas as pd
 import nilearn.plotting as nip
 import matplotlib.pyplot as plt
 import nibabel as nib
-#get_ipython().run_line_magic('matplotlib', 'inline')
-plt.rcParams["figure.figsize"] = (12,6)
-#get_ipython().run_line_magic('config', "InlineBackend.figure_format='retina'  # adapt plots for retina displays")
+
+# get_ipython().run_line_magic('matplotlib', 'inline')
+plt.rcParams["figure.figsize"] = (12, 6)
+# get_ipython().run_line_magic('config', "InlineBackend.figure_format='retina'  # adapt plots for retina displays")
 import git
 import comet_ml
 
@@ -77,7 +79,7 @@ from aneurysm_utils import evaluation, training
 
 # ### Initialize Environment
 
-# In[3]:
+# %%
 
 
 env = aneurysm_utils.Environment(project="ML_in_MIP", root_folder="/workspace/")
@@ -88,7 +90,7 @@ env.print_info()
 # ## Load Data
 # Download, explore, and prepare all required data for the experiment in this section.
 
-# In[4]:
+# %%
 
 
 dataset_params = {
@@ -107,7 +109,7 @@ preprocessing_params = {
 
 # ### Load Meta Data
 
-# In[23]:
+# %%
 
 
 from aneurysm_utils.data_collection import load_aneurysm_dataset
@@ -123,7 +125,7 @@ df.head()
 
 # ### Load & Split MRI Data
 
-# In[28]:
+# %%
 
 
 # Load MRI images and split into train, test, and validation
@@ -145,7 +147,7 @@ mri_imgs_test, labels_test = test_data
 mri_imgs_val, labels_val = val_data
 
 
-# In[7]:
+# %%
 
 
 from aneurysm_utils import preprocessing
@@ -153,7 +155,7 @@ from aneurysm_utils import preprocessing
 preprocessing.check_mri_shapes(mri_imgs_train)
 
 
-# In[8]:
+# %%
 
 
 
@@ -172,7 +174,7 @@ labels_val = [i for j, i in enumerate(labels_val) if j not in val_index]
 
 # ## Transform & Preprocess Data
 
-# In[9]:
+# %%
 
 
 from aneurysm_utils import preprocessing
@@ -193,7 +195,7 @@ mri_imgs_val = mri_imgs[size_of_train + size_of_test :]
 mri_imgs_val = [val[50:140,50:150,40:130] for val in mri_imgs_val]
 
 
-# In[10]:
+# %%
 
 
 mri_imgs_train[0].shape
@@ -202,7 +204,7 @@ mri_imgs_train[0].shape
 # ### Optional: View image
 # 
 
-# In[12]:
+# %%
 
 
 idx = 0
@@ -217,7 +219,7 @@ nip.view_img(
 )
 
 
-# In[13]:
+# %%
 
 
 evaluation.plot_slices(mri_imgs_train[0])
@@ -228,7 +230,7 @@ evaluation.plot_slices(mri_imgs_train[0])
 
 # ### Train Deep Model 3D data
 
-# In[17]:
+# %%
 
 
 artifacts = {
@@ -274,7 +276,7 @@ params.update(preprocessing_params)
 # Cross-validation
 
 
-# In[18]:
+# %%
 
 
 # Run experiment and sync all metadata
@@ -291,7 +293,7 @@ exp.run(training.train_pytorch_model, params, artifacts)
 
 # ## Evaluate Model
 
-# In[ ]:
+# %%
 
 
 # Do evaluation, e.g. visualizations  

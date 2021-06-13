@@ -12,7 +12,8 @@ import nibabel as nib
 
 import aneurysm_utils
 
-def intensity_segmentation(image : np.array,threshold :float) ->np.array:
+
+def intensity_segmentation(image: np.array, threshold: float) -> np.array:
     """
     Does a binary segmentation on an image depending on the intensity of the pixels, if the intentsity is bigger than the threshold its a vessel,
     else its background
@@ -21,17 +22,17 @@ def intensity_segmentation(image : np.array,threshold :float) ->np.array:
     image
         The image to be segmented
     threshold
-        The intensity threshold 
+        The intensity threshold
     Returns
     -------
     numpy array
         A mask for the vessel
-    
+
     """
     mask = copy.copy(image)
-    mask[mask >threshold] = 1
+    mask[mask > threshold] = 1
 
-    mask[mask<threshold] =0
+    mask[mask < threshold] = 0
     return mask
 
 
@@ -64,8 +65,8 @@ def get_mri_template(env: aneurysm_utils.Environment, shape):
 
 
 def get_mri_mask(env: aneurysm_utils.Environment):
-    #TODO: Adjust and understand
-    cache_key = "mri_mask" 
+    # TODO: Adjust and understand
+    cache_key = "mri_mask"
     if cache_key in env.cached_data:
         return env.cached_data[cache_key]
     else:
@@ -133,9 +134,7 @@ def get_roi_volume(env, mri_imgs, atlas=None):
 
     if "pauli_2017" in atlas:
         pauli_atlas = nilearn.datasets.fetch_atlas_pauli_2017()
-        s_struct_arr = nib.load(
-            pauli_atlas["maps"]
-        ).get_data()
+        s_struct_arr = nib.load(pauli_atlas["maps"]).get_data()
         s_labels = len(pauli_atlas["labels"])
     if "HOCPA_th25" in atlas:
         c_struct_arr = nib.load(
