@@ -5,23 +5,25 @@ FROM python:3.8.10
 WORKDIR /code
 
 # copy the dependencies file to the working directory
-COPY requirements.txt .
-
+#COPY requirements.txt .
+COPY utils .
 # install dependencies
 RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
-RUN pip install torch-scatter -f https://pytorch-geometric.com/whl/torch-1.8.1+cu111.html
-RUN pip install torch-sparse -f https://pytorch-geometric.com/whl/torch-1.8.1+cu111.html
-RUN pip install torch-cluster -f https://pytorch-geometric.com/whl/torch-1.8.1+cu111.html
-RUN pip install torch-spline-conv -f https://pytorch-geometric.com/whl/torch-1.8.1+cu111.html
-RUN pip install torch-geometric
-RUN pip install monai
+RUN pip install -q -e utils/
+# RUN pip install -r requirements.txt
+# RUN pip install torch-scatter -f https://pytorch-geometric.com/whl/torch-1.8.1+cu111.html
+# RUN pip install torch-sparse -f https://pytorch-geometric.com/whl/torch-1.8.1+cu111.html
+# RUN pip install torch-cluster -f https://pytorch-geometric.com/whl/torch-1.8.1+cu111.html
+# RUN pip install torch-spline-conv -f https://pytorch-geometric.com/whl/torch-1.8.1+cu111.html
+# RUN pip install torch-geometric
+# RUN pip install monai
+
 #RUN apt update
 #RUN apt install libgl1-mesa-glx
 # copy the content of the local src directory to the working directory
 #COPY src/ .
 
-ENV PYTHONPATH ="/project"
+ENV PYTHONPATH ="/our-git-project"
 
 # command to run on container start
 CMD [ "python"]
