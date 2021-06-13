@@ -438,7 +438,6 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
     # train_dataset.print_image()
 
     exp.log.info("Train dataset loaded. Length: " + str(len(train_loader.dataset)))
-
     exp.log.info("Validation dataset loaded. Length: " + str(len(val_loader.dataset)))
 
     device = torch.device("cuda" if params.use_cuda else "cpu")
