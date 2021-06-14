@@ -557,10 +557,15 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
         #   "Mean_Dice": MeanDice(),
         #  "loss": Loss(criterion),
         #  }
-        output_transform = lambda x: (
-            x[0],
-            torch.squeeze(x[1]),  # torch.squeeze(x[1], 1),
-        )  # (torch.flatten(x[0], start_dim=1), torch.flatten(x[1], start_dim=1))
+        def output_transform(x):
+            if x[1].dim() > 1:
+                return x[0], torch.squeeze(x[1], 1)
+            else:
+                return x[0], torch.squeeze(x[1])
+
+
+          # torch.squeeze(x[1], 1),
+     # (torch.flatten(x[0], start_dim=1), torch.flatten(x[1], start_dim=1))
     else:
         output_transform = None
 
