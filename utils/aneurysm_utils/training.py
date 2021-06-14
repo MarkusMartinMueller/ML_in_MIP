@@ -557,15 +557,10 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
         #   "Mean_Dice": MeanDice(),
         #  "loss": Loss(criterion),
         #  }
-        def output_transform(x):
-            if x[1].dim() > 1:
-                return x[0], torch.squeeze(x[1], 1)
-            else:
-                return x[0], torch.squeeze(x[1])
-
-
-          # torch.squeeze(x[1], 1),
-     # (torch.flatten(x[0], start_dim=1), torch.flatten(x[1], start_dim=1))
+        output_transform = lambda x: (
+            x[0],
+            torch.squeeze(x[1]),  # torch.squeeze(x[1], 1),
+        )  # (torch.flatten(x[0], start_dim=1), torch.flatten(x[1], start_dim=1))
     else:
         output_transform = None
 
@@ -636,73 +631,71 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
         with exp.comet_exp.train():
             exp.comet_exp.log_current_epoch(engine.state.epoch)
             evaluator.run(train_loader)
-            with torch.no_grad():
-                metrics = evaluator.state.metrics
-                acc = metrics["accuracy"]
-                avg_nll = metrics["loss"]
-                spec = float(metrics["recall"].data[0])
-                sen = float(metrics["recall"].data[1])
-                bal_acc = (spec + sen) / 2
-                exp.log.info(
-                    "Training Results - Epoch: {} Bal Avg accuracy: {:.2f} Avg loss: {:.2f}".format(
-                        engine.state.epoch, bal_acc, avg_nll
-                    )
+            metrics = evaluator.state.metrics
+            acc = metrics["accuracy"]
+            avg_nll = metrics["loss"]
+            spec = float(metrics["recall"].data[0])
+            sen = float(metrics["recall"].data[1])
+            bal_acc = (spec + sen) / 2
+            exp.log.info(
+                "Training Results - Epoch: {} Bal Avg accuracy: {:.2f} Avg loss: {:.2f}".format(
+                    engine.state.epoch, bal_acc, avg_nll
                 )
-                exp.comet_exp.log_metrics(
-                    {
-                        "accuracy": acc,
-                        "bal_acc": bal_acc,
-                        "spec": spec,
-                        "sen": sen,
-                        "avg_loss": avg_nll,
-                    },
-                    epoch=engine.state.epoch,
-                )
-                """
-                summary_writer.add_scalar("training/avg_loss", avg_nll, engine.state.epoch)
-                summary_writer.add_scalar("training/acc", acc, engine.state.epoch)
-                summary_writer.add_scalar("training/bal_acc_with_ignite", bal_acc_with_ignite, engine.state.epoch)
-                summary_writer.add_scalar("training/bal_acc", bal_acc, engine.state.epoch)
-                summary_writer.add_scalar("training/spec", spec, engine.state.epoch)
-                summary_writer.add_scalar("training/sen", sen, engine.state.epoch)
-                """
-                empty_cuda_cache(engine)
+            )
+            exp.comet_exp.log_metrics(
+                {
+                    "accuracy": acc,
+                    "bal_acc": bal_acc,
+                    "spec": spec,
+                    "sen": sen,
+                    "avg_loss": avg_nll,
+                },
+                epoch=engine.state.epoch,
+            )
+            """
+            summary_writer.add_scalar("training/avg_loss", avg_nll, engine.state.epoch)
+            summary_writer.add_scalar("training/acc", acc, engine.state.epoch)
+            summary_writer.add_scalar("training/bal_acc_with_ignite", bal_acc_with_ignite, engine.state.epoch)
+            summary_writer.add_scalar("training/bal_acc", bal_acc, engine.state.epoch)
+            summary_writer.add_scalar("training/spec", spec, engine.state.epoch)
+            summary_writer.add_scalar("training/sen", sen, engine.state.epoch)
+            """
+            empty_cuda_cache(engine)
 
     @trainer.on(Events.EPOCH_COMPLETED)
     def log_validation_results(engine):
-        with torch.no_grad():
-            with exp.comet_exp.validate():
-                evaluator.run(val_loader)
-                metrics = evaluator.state.metrics
-                acc = metrics["accuracy"]
-                avg_nll = metrics["loss"]
-                spec = float(metrics["recall"].data[0])
-                sen = float(metrics["recall"].data[1])
-                bal_acc = (spec + sen) / 2
-                conf_matrix = metrics["confusion_matrix"]
-                exp.log.info(
-                    "Validation Results - Epoch: {} Bal Avg accuracy: {:.2f} Avg loss: {:.2f}".format(
-                        engine.state.epoch, bal_acc, avg_nll
-                    )
+        with exp.comet_exp.validate():
+            evaluator.run(val_loader)
+            metrics = evaluator.state.metrics
+            acc = metrics["accuracy"]
+            avg_nll = metrics["loss"]
+            spec = float(metrics["recall"].data[0])
+            sen = float(metrics["recall"].data[1])
+            bal_acc = (spec + sen) / 2
+            conf_matrix = metrics["confusion_matrix"]
+            exp.log.info(
+                "Validation Results - Epoch: {} Bal Avg accuracy: {:.2f} Avg loss: {:.2f}".format(
+                    engine.state.epoch, bal_acc, avg_nll
                 )
-                exp.comet_exp.log_metrics(
-                    {"accuracy": acc, "bal_acc": bal_acc, "spec": spec, "sen": sen},
-                    epoch=engine.state.epoch,
-                )
-                exp.comet_exp.log_confusion_matrix(
-                    matrix=conf_matrix.tolist(),
-                    step=engine.state.epoch,
-                    file_name="confusion-matrix-" + str(engine.state.epoch) + ".json",
-                )
-                """
-                summary_writer.add_scalar("valdation/acc", acc, engine.state.epoch)
-                summary_writer.add_scalar("valdation/avg_loss", avg_nll, engine.state.epoch)
-                summary_writer.add_scalar("valdation/bal_acc_with_ignite", bal_acc_with_ignite, engine.state.epoch)
-                summary_writer.add_scalar("valdation/bal_acc", bal_acc, engine.state.epoch)
-                summary_writer.add_scalar("validation/spec", spec, engine.state.epoch)
-                summary_writer.add_scalar("validation/sen", sen, engine.state.epoch)
-                """
-                empty_cuda_cache(engine)
+            )
+            exp.comet_exp.log_metrics(
+                {"accuracy": acc, "bal_acc": bal_acc, "spec": spec, "sen": sen},
+                epoch=engine.state.epoch,
+            )
+            exp.comet_exp.log_confusion_matrix(
+                matrix=conf_matrix.tolist(),
+                step=engine.state.epoch,
+                file_name="confusion-matrix-" + str(engine.state.epoch) + ".json",
+            )
+            """
+            summary_writer.add_scalar("valdation/acc", acc, engine.state.epoch)
+            summary_writer.add_scalar("valdation/avg_loss", avg_nll, engine.state.epoch)
+            summary_writer.add_scalar("valdation/bal_acc_with_ignite", bal_acc_with_ignite, engine.state.epoch)
+            summary_writer.add_scalar("valdation/bal_acc", bal_acc, engine.state.epoch)
+            summary_writer.add_scalar("validation/spec", spec, engine.state.epoch)
+            summary_writer.add_scalar("validation/sen", sen, engine.state.epoch)
+            """
+            empty_cuda_cache(engine)
 
     # create model files
     if params.save_models:

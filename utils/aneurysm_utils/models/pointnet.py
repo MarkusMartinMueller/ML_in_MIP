@@ -66,9 +66,9 @@ class FPModule(torch.nn.Module):
 
 
 class SegNet(torch.nn.Module):
-    def __init__(self, num_classes):
+    def __init__(self, num_classes,dropout=0.5):
         super(SegNet, self).__init__()
-
+        self.dropout =dropout
         self.sa1_module = SAModule(0.2, 0.2, MLP([1 + 3, 64, 64, 128]))
         self.sa2_module = SAModule(0.25, 0.4, MLP([128 + 3, 128, 128, 256]))
         self.sa3_module = GlobalSAModule(MLP([256 + 3, 256, 512, 1024]))
@@ -92,9 +92,9 @@ class SegNet(torch.nn.Module):
         x, pos, _ = self.fp1_module(*fp2_out, *sa0_out)
 
         x = F.relu(self.lin1(x))
-        x = F.dropout(x, p=0.5, training=self.training)
+        x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.lin2(x)
-        x = F.dropout(x, p=0.5, training=self.training)
+        x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.lin3(x)
         return torch.squeeze(x)
         """

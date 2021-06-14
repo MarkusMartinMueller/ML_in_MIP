@@ -11,6 +11,7 @@ from addict import Dict
 import matplotlib.pyplot as plt
 import nibabel as nib
 import copy
+from ast import literal_eval
 import aneurysm_utils
 
 
@@ -215,7 +216,11 @@ def check_mri_shapes(mri_imgs: list):
     for mri_img in mri_imgs:
         shape_cnt[str(mri_img.shape)] += 1
     print("Most common:")
+    most_common_count=0
     for shape, count in shape_cnt.most_common():
+        if count > most_common_count:
+            most_common_count =count
+            most_common_shape=shape
         print("%s: %7d" % (shape, count))
 
     """
@@ -235,6 +240,7 @@ def check_mri_shapes(mri_imgs: list):
             )
     """
 
+    return literal_eval(most_commen_shape)
 
 # +
 def is_int(val):
