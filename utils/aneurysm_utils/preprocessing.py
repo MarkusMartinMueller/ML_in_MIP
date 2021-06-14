@@ -240,7 +240,7 @@ def check_mri_shapes(mri_imgs: list):
             )
     """
 
-    return literal_eval(most_commen_shape)
+    return literal_eval(most_common_shape)
 
 # +
 def is_int(val):
