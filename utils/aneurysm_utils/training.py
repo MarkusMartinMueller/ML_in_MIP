@@ -384,37 +384,37 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
     # assert params.sampler is not None, "Sampler is not implemented"
 
     if params.model_name != "SegNet":
-        train_dataset = pytorch_utils.PytorchDataset(
+        self.train_dataset = pytorch_utils.PytorchDataset(
             mri_imgs_train,
             labels_train,
             dtype=np.float64,
             segmentation=params.segmentation,
         )
         train_loader = DataLoader(
-            train_dataset,
+            self.train_dataset,
             batch_size=params.batch_size,
             shuffle=params.shuffle_train_set,
             num_workers=params.num_threads if params.num_threads else 0,
             pin_memory=params.use_cuda,
         )
-        validation_dataset = pytorch_utils.PytorchDataset(
+        self.validation_dataset = pytorch_utils.PytorchDataset(
             mri_imgs_val, labels_val, dtype=np.float64, segmentation=params.segmentation
         )
-        test_dataset = pytorch_utils.PytorchDataset(
+        self.test_dataset = pytorch_utils.PytorchDataset(
             mri_imgs_test,
             labels_test,
             dtype=np.float64,
             segmentation=params.segmentation,
         )
         val_loader = DataLoader(
-            validation_dataset,
+            self.validation_dataset,
             batch_size=params.batch_size,  # TODO: use fixed batch size of 5
             shuffle=False,
             num_workers=params.num_threads if params.num_threads else 0,
             pin_memory=params.use_cuda,
         )
         test_loader = DataLoader(
-            test_dataset,
+            self.test_dataset,
             batch_size=1,  # TODO: use fixed batch size of 5
             shuffle=False,
             num_workers=params.num_threads if params.num_threads else 0,
@@ -422,7 +422,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
         )
     else:
         datasets_folder = exp._env.project_folder
-        train_dataset = pytorch_utils.PyTorchGeometricDataset(
+        self.train_dataset = pytorch_utils.PyTorchGeometricDataset(
             mri_images=mri_imgs_train,
             labels=labels_train,
             root=datasets_folder,
@@ -434,14 +434,14 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
             root=datasets_folder,
             split="val",
         )
-        test_dataset = pytorch_utils.PyTorchGeometricDataset(
+        self.test_dataset = pytorch_utils.PyTorchGeometricDataset(
             mri_images=mri_imgs_test,
             labels=labels_test,
             root=datasets_folder,
             split="test",
         )
         train_loader = DataLoaderGeometric(
-            train_dataset,
+            self.test_dataset,
             batch_size=params.batch_size,
             shuffle=params.shuffle_train_set,
             num_workers=params.num_threads if params.num_threads else 0,
@@ -455,14 +455,14 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
             pin_memory=params.use_cuda,
         )
         test_loader = DataLoaderGeometric(
-            test_dataset,
+            self.test_dataset,
             batch_size=1,
             shuffle=False,
             num_workers=params.num_threads if params.num_threads else 0,
             pin_memory=params.use_cuda,
         )
 
-    # train_dataset.print_image()
+    # self.test_dataset.print_image()
 
     exp.log.info("Train dataset loaded. Length: " + str(len(train_loader.dataset)))
     exp.log.info("Validation dataset loaded. Length: " + str(len(val_loader.dataset)))
@@ -720,7 +720,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
             )
             if params.model_name == "SegNet":
                 pred_classes, pred_scores = extend_point_cloud(
-                    pred_classes, pred_scores, test_dataset, labels_test
+                    pred_classes, pred_scores, self.test_dataset, labels_test
                 )
             exp.comet_exp.log_metrics(
                 evaluation.evaluate_model(
