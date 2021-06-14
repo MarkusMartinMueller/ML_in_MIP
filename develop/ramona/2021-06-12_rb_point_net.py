@@ -140,7 +140,7 @@ df.head()
 
 # Load MRI images and split into train, test, and validation
 from aneurysm_utils.data_collection import split_mri_images
-case_list = ["A001","A003","A005","A006","A008", "A010", "A012","A009"]
+case_list = ["A001","A003","A005","A006","A008", "A010", "A012","A009", "A013", "A014", "A015", "A121", "A123", "A124", "A120", "A119"]
 df = df.loc[df["Case"].isin(case_list)]
 
 train_data, test_data, val_data, _ = split_mri_images(
@@ -256,7 +256,7 @@ artifacts = {
 # Define parameter configuration for experiment run
 params = {
     "batch_size": 3,
-    "epochs": 100,
+    "epochs": 1,
     "learning_rate": 5.0e-3, # 3e-04, 1.0E-5
     "es_patience": None, # None = deactivate early stopping
     "weight_decay": 0.001, # 1e-3

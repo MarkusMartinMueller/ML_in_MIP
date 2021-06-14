@@ -7,29 +7,32 @@ import torch.utils.data
 from torch.utils.data import Dataset
 from torch_geometric.data import InMemoryDataset 
 from aneurysm_utils.utils.point_cloud_utils import segmented_image_to_graph
+from aneurysm_utils.utils.ignite_utils import prepare_batch
 
-def predict(model, images: list, cuda=False, apply_softmax=True):
+
+def predict(model, loader, cuda=False, apply_softmax=True):
     predictions = []
-    for img in images:
-        # Forward pass.
-        image_tensor = torch.Tensor([img])  # convert numpy or list to tensor
-        if cuda:
-            image_tensor = image_tensor.cuda()
-        X = torch.autograd.Variable(
-            image_tensor[None], requires_grad=True
-        )  # add dimension to simulate batch
+    device = "cuda" if cuda else "cpu"
+    for batch in loader:
+        X, y = prepare_batch(batch, device=device)
         output = model(X)
         if apply_softmax:
             output = torch.nn.functional.softmax(output)
 
         # Backward pass.
         model.zero_grad()
-        try:
-            output_class = output.max(1)[1].data[0].item()
-            output_probability = output.max(1)[0].data[0].item()
-        except ValueError:
-            output_class = output.max(1)[1].data[0].cpu().numpy()
-            output_probability = output.max(1)[0].data[0].cpu().numpy()
+        
+        if output.dim() == 2:
+            output_class = output.max(1)[1].cpu().numpy()
+            output_probability = output.max(1)[0].cpu().detach().numpy()
+        # Test with simple cnn3d
+        else: 
+            try:
+                output_class = output.max(1)[1].data[0].item()
+                output_probability = output.max(1)[0].data[0].item()
+            except ValueError:
+                output_class = output.max(1)[1].data[0].cpu().numpy()
+                output_probability = output.max(1)[0].data[0].cpu().numpy()
         predictions.append((output_class, output_probability))
     return predictions
 
