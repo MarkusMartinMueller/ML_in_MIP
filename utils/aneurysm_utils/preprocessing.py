@@ -224,8 +224,8 @@ def check_mri_shapes(mri_imgs: list):
     most_common_count=0
     for shape, count in shape_cnt.most_common():
         if count > most_common_count:
-            most_common_count =count
-            most_common_shape=shape
+            most_common_count = count
+            most_common_shape = shape
         print("%s: %7d" % (shape, count))
 
     """
@@ -244,7 +244,6 @@ def check_mri_shapes(mri_imgs: list):
                 + ")"
             )
     """
-
     return literal_eval(most_common_shape)
 
 # +
