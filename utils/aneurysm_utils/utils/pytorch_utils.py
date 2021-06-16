@@ -5,31 +5,34 @@ import numpy as np
 import torch
 import torch.utils.data
 from torch.utils.data import Dataset
-from torch_geometric.data import InMemoryDataset 
+from torch_geometric.data import InMemoryDataset
 from aneurysm_utils.utils.point_cloud_utils import segmented_image_to_graph
+from aneurysm_utils.utils.ignite_utils import prepare_batch
 
-def predict(model, images: list, cuda=False, apply_softmax=True):
+
+def predict(model, loader, cuda=False, apply_softmax=True):
     predictions = []
-    for img in images:
-        # Forward pass.
-        image_tensor = torch.Tensor([img])  # convert numpy or list to tensor
-        if cuda:
-            image_tensor = image_tensor.cuda()
-        X = torch.autograd.Variable(
-            image_tensor[None], requires_grad=True
-        )  # add dimension to simulate batch
+    device = "cuda" if cuda else "cpu"
+    for batch in loader:
+        X, y = prepare_batch(batch, device=device)
         output = model(X)
         if apply_softmax:
             output = torch.nn.functional.softmax(output)
 
         # Backward pass.
         model.zero_grad()
-        try:
-            output_class = output.max(1)[1].data[0].item()
-            output_probability = output.max(1)[0].data[0].item()
-        except ValueError:
-            output_class = output.max(1)[1].data[0].cpu().numpy()
-            output_probability = output.max(1)[0].data[0].cpu().numpy()
+
+        if output.dim() == 2:
+            output_class = output.max(1)[1].cpu().detach().numpy()
+            output_probability = output.max(1)[0].cpu().detach().numpy()
+        # Test with simple cnn3d
+        else:
+            try:
+                output_class = output.max(1)[1].data[0].cpu().item()
+                output_probability = output.max(1)[0].data[0].cpu().item()
+            except ValueError:
+                output_class = output.max(1)[1].data[0].cpu().numpy()
+                output_probability = output.max(1)[0].data[0].cpu().numpy()
         predictions.append((output_class, output_probability))
     return predictions
 
@@ -71,7 +74,7 @@ class PytorchDataset(Dataset):
         z_factor=None,
         dtype=np.float32,
         num_classes=2,
-        segmentation=False
+        segmentation=False,
     ):
         self.mri_imgs = np.copy(mri_imgs)
         self.segmentation = segmentation
@@ -80,7 +83,7 @@ class PytorchDataset(Dataset):
         else:
             pass
         self.labels = torch.LongTensor(labels)
-       
+
         self.transform = transform
         self.target_transform = target_transform
         self.z_factor = z_factor
@@ -95,7 +98,7 @@ class PytorchDataset(Dataset):
             label = np.expand_dims(self.labels[idx], axis=0).astype(np.float32)
         else:
             pass
-        
+
         label = self.labels[idx]
         image = np.expand_dims(self.mri_imgs[idx], axis=0).astype(np.float32)
         if self.transform:
@@ -122,6 +125,7 @@ class PytorchDataset(Dataset):
                 "Scans of id  " + str(idx) + "with label  " + str(self.labels[idx])
             )
             plt.show()
+
 
 """
 class PytorchgeometricDataset(Dataset_Geometric):
@@ -166,17 +170,17 @@ class PytorchgeometricDataset(Dataset_Geometric):
             return None
 """
 
-class PyTorchGeometricDataset(InMemoryDataset):
 
+class PyTorchGeometricDataset(InMemoryDataset):
     def __init__(
         self,
-        root,  # env. dataset folder 
+        root,  # env. dataset folder
         mri_images,
         labels,
         split="train",
         force_processing=True,
         transform=None,
-        pre_transform=None
+        pre_transform=None,
     ):
         self.split = split
         self.mri_images = mri_images
@@ -196,7 +200,9 @@ class PyTorchGeometricDataset(InMemoryDataset):
     def processed_file_names(self):
         # List of files in the processed_dir in order to skip the download
         return (
-            ["force_processing"] if self.force_processing else ["train.pt", "test.pt", "val.pt"]
+            ["force_processing"]
+            if self.force_processing
+            else ["train.pt", "test.pt", "val.pt"]
         )
 
     def process(self):
@@ -205,12 +211,13 @@ class PyTorchGeometricDataset(InMemoryDataset):
         dataset = []
         for idx, (image, label) in enumerate(zip(self.mri_images, self.labels)):
             graph = segmented_image_to_graph(image, label)
-            
+
             dataset.append(graph)
 
         torch.save(
             self.collate(dataset), os.path.join(self.processed_dir, f"{self.split}.pt")
         )
+
 
 # -------------------------- Samplers ---------------------------------
 
@@ -294,6 +301,3 @@ class ImbalancedDatasetSampler2(torch.utils.data.sampler.Sampler):
 
     def __len__(self):
         return self.num_samples
-
-
-       

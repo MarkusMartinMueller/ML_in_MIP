@@ -11,6 +11,7 @@ from addict import Dict
 import matplotlib.pyplot as plt
 import nibabel as nib
 import copy
+from ast import literal_eval
 import aneurysm_utils
 
 
@@ -30,6 +31,10 @@ def intensity_segmentation(mri_imgs: List[np.memmap], threshold: float) -> np.ar
         A mask for the vessel
 
     """
+    mri_imgs = [np.where(image > threshold, image, 0) for image in mri_imgs]
+    #mri_imgs = [np.where(image < threshold, image, 1) for image in mri_imgs]
+    return mri_imgs
+    """
     segmented = []
     for image in mri_imgs:
         mask = copy.copy(image)
@@ -37,6 +42,7 @@ def intensity_segmentation(mri_imgs: List[np.memmap], threshold: float) -> np.ar
         mask[mask < threshold] = 0
         segmented.append(mask)
     return segmented
+    """
 
 
 def resize_mri(img, size, interpolation=0):
@@ -215,7 +221,11 @@ def check_mri_shapes(mri_imgs: list):
     for mri_img in mri_imgs:
         shape_cnt[str(mri_img.shape)] += 1
     print("Most common:")
+    most_common_count=0
     for shape, count in shape_cnt.most_common():
+        if count > most_common_count:
+            most_common_count =count
+            most_common_shape=shape
         print("%s: %7d" % (shape, count))
 
     """
@@ -235,6 +245,7 @@ def check_mri_shapes(mri_imgs: list):
             )
     """
 
+    return literal_eval(most_common_shape)
 
 # +
 def is_int(val):

@@ -140,7 +140,7 @@ class Unet_3D(nn.Module):
                 x = self.up[idx+1](concat_skip)## upsampling step
                 
             
-            return torch.sigmoid(self.final_conv(x))
+            return self.final_conv(x)
         
         
 def test():

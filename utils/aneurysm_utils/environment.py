@@ -39,7 +39,7 @@ class Experiment:
     _RUN_INFO_FILE_NAME = "{}_run.json"
 
     def __init__(
-        self, env, name: str, comet_exp: comet_ml.Experiment, redirect_logs: bool = True
+        self, env, name: str, comet_exp: comet_ml.Experiment, redirect_logs: bool = False
     ):
         # Initialize logger
         self.log = logging.getLogger(__name__)
@@ -692,7 +692,7 @@ class Environment:
         """
         Returns the path to the datasets folder of the selected project.
         """
-        if self.project_folder == "/group/cake/":
+        if self.project_folder == "/group/cake/our-git-project":
             folder = "/data/training"
         else:
             folder = os.path.join(self.project_folder, self._DATASETS_FOLDER_NAME)

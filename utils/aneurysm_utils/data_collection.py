@@ -71,6 +71,7 @@ def get_case_images(
     case: str,
     mri_data_selection: str = "unprocessed",
     mesh: bool = False,
+    resample_voxel_dim: tuple = None,
     ):
 
     files = {
@@ -83,21 +84,21 @@ def get_case_images(
             }
     img_dict = {}
     for name, file in files.items():
-        if ("Mesh" in name) & mesh:
-            count = int(df.loc[df['Case'] == case].get("Aneurysm Count"))
-            try: 
-                path = os.path.join(env.datasets_folder, mri_data_selection, f'{case}{file}')
-                img_dict[name] = pv.read(path)
-            except FileNotFoundError:
-                names = "ABCD"
-                for i in names[:count]:
-                    path = os.path.join(env.datasets_folder, mri_data_selection, f'{case}_{i}{file}')
-                    img_dict[name + " " + i] = pv.read(path)
-              
+        if ("Mesh" in name):
+            if mesh:
+                count = int(df.loc[df['Case'] == case].get("Aneurysm Count"))
+                try: 
+                    path = os.path.join(env.datasets_folder, mri_data_selection, f'{case}{file}')
+                    img_dict[name] = pv.read(path)
+                except FileNotFoundError:
+                    names = "ABCD"
+                    for i in names[:count]:
+                        path = os.path.join(env.datasets_folder, mri_data_selection, f'{case}_{i}{file}')
+                        img_dict[name + " " + i] = pv.read(path)
         else:
             path = os.path.join(env.datasets_folder, mri_data_selection, f'{case}{file}')
             img_dict[name + " nii"] = nib.load(path)
-            img_dict[name + " struct_arr"] = load_nifti(path)
+            img_dict[name + " struct_arr"] = load_nifti(path, resample_dim=resample_voxel_dim)
     
     return img_dict
 
@@ -132,7 +133,7 @@ def load_mri_images(
 
     for idx, row in tqdm.tqdm(df.iterrows(), total=len(df)):
         # nifti_orig = nib.load(row["Path Orig"])
-        nifti_orig = load_nifti(row["Path Orig"])
+        nifti_orig = load_nifti(row["Path Orig"], resample_dim=resample_voxel_dim)
         if prediction in ["mask", "vessel"]:
             # nifti_mask = nib.load(row[DF_DICT[prediction]])
             nifti_mask = load_nifti(row[DF_DICT[prediction]], resample_dim=resample_voxel_dim)

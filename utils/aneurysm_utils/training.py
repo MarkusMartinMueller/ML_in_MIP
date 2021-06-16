@@ -18,6 +18,7 @@ from aneurysm_utils.models import get_model
 from aneurysm_utils.utils import pytorch_utils
 from aneurysm_utils import evaluation
 from aneurysm_utils.utils.ignite_utils import prepare_batch
+from aneurysm_utils.utils.point_cloud_utils import extend_point_cloud
 
 # -------------------------- Train model ---------------------------------
 
@@ -61,6 +62,7 @@ def train_sklearn_model(exp, params, artifacts):
         "PassiveAggressiveClassifier",
         "GaussianProcessClassifier",
         "ComplementNB",
+        "DBSCAN",
     ]
 
     if params.model_name == "SVC":
@@ -111,6 +113,11 @@ def train_sklearn_model(exp, params, artifacts):
         model = GaussianProcessClassifier(
             random_state=params.seed, n_jobs=params.n_jobs
         )
+    elif params.model_name == "DBSCAN":
+        from sklearn.cluster import DBSCAN
+
+        model = DBSCAN(eps=0.3, min_samples=100)
+
     elif params.model_name == "ComplementNB":
         from sklearn.naive_bayes import ComplementNB
 
@@ -393,6 +400,12 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
         validation_dataset = pytorch_utils.PytorchDataset(
             mri_imgs_val, labels_val, dtype=np.float64, segmentation=params.segmentation
         )
+        test_dataset = pytorch_utils.PytorchDataset(
+            mri_imgs_test,
+            labels_test,
+            dtype=np.float64,
+            segmentation=params.segmentation,
+        )
         val_loader = DataLoader(
             validation_dataset,
             batch_size=params.batch_size,  # TODO: use fixed batch size of 5
@@ -400,8 +413,15 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
             num_workers=params.num_threads if params.num_threads else 0,
             pin_memory=params.use_cuda,
         )
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=1,  # TODO: use fixed batch size of 5
+            shuffle=False,
+            num_workers=params.num_threads if params.num_threads else 0,
+            pin_memory=params.use_cuda,
+        )
     else:
-        datasets_folder = exp._env.datasets_folder
+        datasets_folder = exp._env.project_folder
         train_dataset = pytorch_utils.PyTorchGeometricDataset(
             mri_images=mri_imgs_train,
             labels=labels_train,
@@ -434,6 +454,13 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
             num_workers=params.num_threads if params.num_threads else 0,
             pin_memory=params.use_cuda,
         )
+        test_loader = DataLoaderGeometric(
+            test_dataset,
+            batch_size=1,
+            shuffle=False,
+            num_workers=params.num_threads if params.num_threads else 0,
+            pin_memory=params.use_cuda,
+        )
 
     # train_dataset.print_image()
 
@@ -444,9 +471,15 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
 
     if params.criterion == "CrossEntropyLoss":
         if params.criterion_weights:
-            criterion = nn.CrossEntropyLoss(
-                weight=torch.FloatTensor(params.criterion_weights).to(device)
-            )
+            weights = params.criterion_weights
+            if isinstance(weights, int) or isinstance(weights, float):
+                criterion = nn.CrossEntropyLoss(
+                    weight=torch.FloatTensor([1.0, weights]).to(device)
+                )
+            else:
+                criterion = nn.CrossEntropyLoss(
+                    weight=torch.FloatTensor(weights).to(device)
+                )
         else:
             criterion = nn.CrossEntropyLoss()
 
@@ -576,7 +609,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
         raise ValueError("Unknown scheduler: " + str(params.scheduler))
 
     def score_function(engine):
-        accuracy = evaluator.state.metrics["accuracy"]
+        accuracy = evaluator.state.metrics["loss"]
         return accuracy
 
     if params.es_patience:
@@ -683,15 +716,20 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
     if mri_imgs_test is not None:
         with exp.comet_exp.test():
             pred_classes, pred_scores = zip(
-                *pytorch_utils.predict(model, mri_imgs_test, cuda=params.use_cuda)
+                *pytorch_utils.predict(model, test_loader, cuda=params.use_cuda)
             )
+            if params.model_name == "SegNet":
+                pred_classes, pred_scores = extend_point_cloud(
+                    pred_classes, pred_scores, test_dataset, labels_test
+                )
             exp.comet_exp.log_metrics(
                 evaluation.evaluate_model(
-                    labels_test, pred_classes, params.segmentation
+                    labels_test,
+                    pred_classes,
+                    params.segmentation,
                 )
             )
 
     # TODO not really needed?
     exp.comet_exp.end()
-
     # TODO: run evaluation
