@@ -39,7 +39,7 @@ class Experiment:
     _RUN_INFO_FILE_NAME = "{}_run.json"
 
     def __init__(
-        self, env, name: str, comet_exp: comet_ml.Experiment, redirect_logs: bool = True
+        self, env, name: str, comet_exp: comet_ml.Experiment, redirect_logs: bool = False
     ):
         # Initialize logger
         self.log = logging.getLogger(__name__)

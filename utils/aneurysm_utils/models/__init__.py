@@ -293,7 +293,7 @@ def get_model(params: Dict):
         )
     elif params.model_name == "SegNet":
         model = pointnet.SegNet(
-            num_classes= params.num_classes
+            num_classes= params.num_classes,
             dropout = params.dropout
         )
     elif params.model_name == "Unet3D":

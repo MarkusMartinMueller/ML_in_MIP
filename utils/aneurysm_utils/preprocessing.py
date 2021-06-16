@@ -31,6 +31,10 @@ def intensity_segmentation(mri_imgs: List[np.memmap], threshold: float) -> np.ar
         A mask for the vessel
 
     """
+    mri_imgs = [np.where(image > threshold, image, 0) for image in mri_imgs]
+    #mri_imgs = [np.where(image < threshold, image, 1) for image in mri_imgs]
+    return mri_imgs
+    """
     segmented = []
     for image in mri_imgs:
         mask = copy.copy(image)
@@ -38,6 +42,7 @@ def intensity_segmentation(mri_imgs: List[np.memmap], threshold: float) -> np.ar
         mask[mask < threshold] = 0
         segmented.append(mask)
     return segmented
+    """
 
 
 def resize_mri(img, size, interpolation=0):

@@ -609,7 +609,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
         raise ValueError("Unknown scheduler: " + str(params.scheduler))
 
     def score_function(engine):
-        accuracy = evaluator.state.metrics["accuracy"]
+        accuracy = evaluator.state.metrics["loss"]
         return accuracy
 
     if params.es_patience:
@@ -732,5 +732,4 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
 
     # TODO not really needed?
     exp.comet_exp.end()
-
     # TODO: run evaluation
