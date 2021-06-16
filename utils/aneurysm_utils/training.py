@@ -8,7 +8,7 @@ from ignite.engine import Events, create_supervised_evaluator, create_supervised
 from ignite.handlers import EarlyStopping, ModelCheckpoint
 from ignite.metrics import Accuracy, ConfusionMatrix, Loss, Recall, IoU, DiceCoefficient
 from torch.utils.data.dataloader import DataLoader
-from pytorch3dunet.unet3d.losses import BCEDiceLoss
+from pytorch3dunet.unet3d.losses import BCEDiceLoss, DiceCELoss
 from monai.transforms import AsDiscrete, Compose
 from monai.handlers import MeanDice
 from torch_geometric.data import DataLoader as DataLoaderGeometric
@@ -514,6 +514,19 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
         # alpha = loss_config.get('alphs', 1.)
         # beta = loss_config.get('beta', 1.)
         criterion = BCEDiceLoss(1, 1)
+    
+    elif params.criterion == "DiceCELoss":
+        if params.criterion_weights:
+            weights = params.criterion_weights
+            if isinstance(weights, int) or isinstance(weights, float):
+                criterion = DiceCELoss(softmax = True,ce_weight= 
+                    torch.FloatTensor([1.0, weights]).to(device)
+                )
+            else:
+                criterion = DiceCELoss(softmax = True,ce_weight= 
+                    torch.FloatTensor(weights).to(device)
+                )
+        
 
     else:
         raise ValueError("No criterion given")
