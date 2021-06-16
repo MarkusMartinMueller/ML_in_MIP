@@ -1,3 +1,5 @@
+pointnet2_segmenation.py
+pointnet2_classification.py
 .idea/
 .workspace
 *.png

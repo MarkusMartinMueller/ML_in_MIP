@@ -354,6 +354,12 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
 
     if not params.dropout2:
         params.dropout2 = 0.0
+    
+    if not params.start_radius:
+        params.start_radius=0.2
+    
+    if not params.sample_rates:
+        params.sample_rates=[0.2,0.25]
 
     if params.seed:
         torch.manual_seed(params.seed)
