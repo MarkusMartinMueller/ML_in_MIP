@@ -8,7 +8,8 @@ from ignite.engine import Events, create_supervised_evaluator, create_supervised
 from ignite.handlers import EarlyStopping, ModelCheckpoint
 from ignite.metrics import Accuracy, ConfusionMatrix, Loss, Recall, IoU, DiceCoefficient
 from torch.utils.data.dataloader import DataLoader
-from pytorch3dunet.unet3d.losses import BCEDiceLoss, DiceCELoss
+from pytorch3dunet.unet3d.losses import BCEDiceLoss
+from monai.losses import DiceCELoss
 from monai.transforms import AsDiscrete, Compose
 from monai.handlers import MeanDice
 from torch_geometric.data import DataLoader as DataLoaderGeometric
