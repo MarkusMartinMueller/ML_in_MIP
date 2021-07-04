@@ -224,13 +224,13 @@ def plot_slices(
                     interpolation=None,
                 )
 
-def draw_mask_3d(image:np.array,ax=None,zorder=0,markersize=0.8):
+def draw_mask_3d(image:np.array,ax=None,zorder=0,markersize=0.8,alpha=1):
     fig = plt.figure()
     if ax==None:
         ax = Axes3D(fig)
     else:
         ax=ax
-    ax.scatter(np.argwhere(image).T[0],np.argwhere(image).T[1],np.argwhere(image).T[2],s=markersize,alpha=1,zorder=zorder)
+    ax.scatter(np.argwhere(image).T[0],np.argwhere(image).T[1],np.argwhere(image).T[2],s=markersize,alpha=alpha,zorder=zorder)
 
 
 
@@ -247,11 +247,11 @@ def draw_bounding_box(candidates,vessel_array:np.array,aneurysm_array:np.array):
             x=[element[0][0],element[1][0]]
             y=[element[0][1],element[1][1]]
             z=[element[0][2],element[1][2]]
-            ax.plot(x,y,z,c='r')
+            ax.plot(x,y,z,c='r',zorder=2,linewidth=2,alpha=1)
 
     
-    draw_mask_3d(vessel_array,ax,zorder=-1)
-    draw_mask_3d(aneurysm_array,ax,zorder=2,markersize=15)
+    draw_mask_3d(vessel_array,ax,zorder=-1,markersize=3,alpha=0.2)
+    draw_mask_3d(aneurysm_array,ax,zorder=1,markersize=3,alpha=0.8)
 # +
 # ---------------------------- Interpretation methods --------------------------------
 # From: https://github.com/jrieke/cnn-interpretability
