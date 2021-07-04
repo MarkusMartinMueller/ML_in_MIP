@@ -1,7 +1,7 @@
 import glob
 import os
 from typing import List, Optional, Union
-
+from scipy.ndimage import zoom
 import nibabel as nib
 import nilearn
 import numpy as np
@@ -15,9 +15,9 @@ from monai.transforms import Spacing
 
 import aneurysm_utils
 
-DF_DICT = {"mask": "Path Mask", "vessel": "Path Vessel", "rupture risk": "Rupture Status"}
+DF_DICT = {"mask": "Path Mask", "vessel": "Path Vessel", "rupture risk": "Rupture Status", "labeled":"Path Labeled Mask"}
 
-def load_nifti(file_path, mask=None, z_factor=None, remove_nan=True, resample_dim=(1.5, 1.5, 1.5)):
+def load_nifti(file_path, mask=None, z_factor=None, remove_nan=True, resample_dim=(1.5, 1.5, 1.5),resample_size=None,order=2):
     """Load a 3D array from a NIFTI file."""
     nifti = nib.load(file_path)
     struct_arr = nifti.get_data().astype("<f4")
@@ -31,6 +31,10 @@ def load_nifti(file_path, mask=None, z_factor=None, remove_nan=True, resample_di
         spacing = Spacing(pixdim=resample_dim)
         struct_arr = spacing(struct_arr, nifti.affine)[0]
         struct_arr = np.squeeze(struct_arr, axis=0)
+    elif resample_size is not None:
+        shape=struct_arr.shape
+        zoom_factors= [resample_size[0]/shape[0],resample_size[1]/shape[1],resample_size[2]/shape[2]]
+        struct_arr=zoom(struct_arr,zoom_factors,order=order)
     #print(struct_arr.shape)
 
 
@@ -83,6 +87,7 @@ def get_case_images(
         "Aneurysm Mesh": ".stl",
             }
     img_dict = {}
+    img_dict["case"]=case
     for name, file in files.items():
         if ("Mesh" in name):
             if mesh:
@@ -109,6 +114,8 @@ def load_mri_images(
     mask: str = None,
     case_list: List[str] = None,
     resample_voxel_dim: tuple = (1.5, 1.5, 1.5),
+    resample_size: tuple=None,
+    order:int = 2
 ):
     """
     Load MRI images for a given dataframe.
@@ -122,7 +129,7 @@ def load_mri_images(
         mri_imgs (ndarray): List of loaded MRI images.
         labels (ndarray): List of labels corresponding to the MRI images.
     """
-    assert prediction in ["mask", "vessel", "rupture risk"]
+    assert prediction in ["mask", "vessel", "rupture risk","labeled"]
 
     if case_list:
         df = df.loc[df["Case"].isin(case_list)]
@@ -133,16 +140,16 @@ def load_mri_images(
 
     for idx, row in tqdm.tqdm(df.iterrows(), total=len(df)):
         # nifti_orig = nib.load(row["Path Orig"])
-        nifti_orig = load_nifti(row["Path Orig"], resample_dim=resample_voxel_dim)
-        if prediction in ["mask", "vessel"]:
+        nifti_orig = load_nifti(row["Path Orig"], resample_dim=resample_voxel_dim,resample_size=resample_size,order=order)
+        if prediction in ["mask", "vessel","labeled"]:
             # nifti_mask = nib.load(row[DF_DICT[prediction]])
-            nifti_mask = load_nifti(row[DF_DICT[prediction]], resample_dim=resample_voxel_dim)
+            nifti_mask = load_nifti(row[DF_DICT[prediction]], resample_dim=resample_voxel_dim,resample_size=resample_size,order=order)
             labels.append(np.rint(nifti_mask))
             #values, count = np.unique(np.rint(nifti_mask), return_counts=True)
             #print(count, (count[1]/count[0]))
         else:
             labels.append(row[DF_DICT[prediction]])
-            nifti_labeled_mask = load_nifti(row["Path Labeled Mask"], resample_dim=resample_voxel_dim)
+            nifti_labeled_mask = load_nifti(row["Path Labeled Mask"], resample_dim=resample_voxel_dim,resample_size=resample_size,order=order)
             nifti_labeled_mask[nifti_labeled_mask != row["Labeled Mask Index"]] = 0
             # TODO: Add resample here
             nifti_orig *= nifti_labeled_mask
@@ -213,6 +220,8 @@ def split_mri_images(
     random_state: int = 0,
     print_stats: bool = True,
     resample_voxel_dim: tuple = (1.5, 1.5, 1.5),
+    resample_size: tuple=None,
+    order:int = 2
 ) -> Union[tuple, tuple, tuple, preprocessing.LabelEncoder]:
     """
     Load mri images for provided dataset and split into train, test, and validate.
@@ -285,9 +294,9 @@ def split_mri_images(
         )
 
     return (
-        load_mri_images(env, df_train, prediction, resample_voxel_dim=resample_voxel_dim)[:2],
-        load_mri_images(env, df_test, prediction, resample_voxel_dim=resample_voxel_dim)[:2],
-        load_mri_images(env, df_validation, prediction, resample_voxel_dim=resample_voxel_dim)[:2],
+        load_mri_images(env, df_train, prediction, resample_voxel_dim=resample_voxel_dim,resample_size=resample_size,order=order)[:2],
+        load_mri_images(env, df_test, prediction, resample_voxel_dim=resample_voxel_dim,resample_size=resample_size,order=order)[:2],
+        load_mri_images(env, df_validation, prediction, resample_voxel_dim=resample_voxel_dim,resample_size=resample_size,order=order)[:2],
         label_encoder
     )
 

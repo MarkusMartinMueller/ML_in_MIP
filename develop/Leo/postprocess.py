@@ -5,13 +5,14 @@ import numpy as np
 from sklearn.cluster import DBSCAN
 from pathlib import Path
 import os
-from monai.transforms import Resample
-from scipy.ndimage import distance_transform_bf
+
+
 from sklearn.metrics.cluster import normalized_mutual_info_score
 import open3d
 from collections import defaultdict
-from monai.transforms import Spacing
+
 from scipy.ndimage import zoom
+
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
@@ -51,56 +52,22 @@ def draw_mask_3d(image:np.array):
     ax = Axes3D(fig)
     ax.scatter(np.argwhere(image[0]).T[0],np.argwhere(image[0]).T[1],np.argwhere(image[0]).T[2],s=0.2,alpha=1)
 
+
+
 def draw_bounding_box(vertice_points):
-    Z=np.rint(np.array(vertice_points))
+    Z=np.array(vertice_points)
+
     fig = plt.figure()
-    #ax = fig.add_subplot(111, projection='3d')
     ax = Axes3D(fig)
-    #r = [-1,1]
-    #X, Y = np.meshgrid(r, r)
-    #ax.scatter3D(Z[:, 0], Z[:, 1], Z[:, 2])
-    verts = [[Z[0],Z[1],Z[2],Z[3]],
-    [Z[4],Z[5],Z[6],Z[7]],
-    [Z[0],Z[1],Z[5],Z[4]],
-    [Z[2],Z[3],Z[7],Z[6]],
-    [Z[1],Z[2],Z[6],Z[5]],
-    [Z[4],Z[7],Z[3],Z[0]]]
-    for count in range(0,len(verts),2):
-        x=[verts[count][0],verts[count+1][0]]
-        y=[verts[count][1],verts[count+1][1]]
-        z=[verts[count][2],verts[count+1][2]]
+    verts= [(Z[0],Z[1]),(Z[0],Z[2]),(Z[0],Z[3]),(Z[6],Z[1]),(Z[7],Z[1]),(Z[2],Z[5]),
+    (Z[2],Z[7]),(Z[3],Z[5]),(Z[3],Z[6]),(Z[4],Z[7]),(Z[4],Z[6]),(Z[4],Z[5])]
+
+    for element in verts:
+        x=[element[0][0],element[1][0]]
+        y=[element[0][1],element[1][1]]
+        z=[element[0][2],element[1][2]]
         ax.plot(x,y,z,c='r')
-    #ax.add_collection3d(Poly3DCollection(verts, facecolors='cyan', linewidths=1, edgecolors='r', alpha=.20))
-    plt.show()
 
-def load_nifti(file_path, mask=None, z_factor=None, remove_nan=True, resample_dim=(1.5, 1.5, 1.5)):
-    """Load a 3D array from a NIFTI file."""
-    nifti = nib.load(file_path)
-    struct_arr = nifti.get_fdata()
-    #print(struct_arr.shape)
-    #values, count = np.unique(struct_arr, return_counts=True)
-    #print("Original", count, (count[1]/count[0]))
-
-    if resample_dim is not None:
-        struct_arr = np.expand_dims(struct_arr, axis=0)
-        ###To Do: Resampling method: Lanczos
-        spacing = Spacing(pixdim=resample_dim)
-        struct_arr = spacing(struct_arr, nifti.affine)[0]
-        struct_arr = np.squeeze(struct_arr, axis=0)
-    #print(struct_arr.shape)
-
-
-    # struct_arr = np.array(nib.load(file_path).get_data().astype("<f4"))  # TODO:
-    # nilearn.image.smooth_img(row["path"], fwhm=3).get_data().astype("<f4")
-    # struct_arr = nib.load(file_path).get_data().astype("<f4")
-    # np.array(nib.load(file_path).get_data().astype("<f4"))
-    if remove_nan:
-        struct_arr = np.nan_to_num(struct_arr)
-    if mask is not None:
-        struct_arr *= mask
-
-
-    return struct_arr
 
 def dbscan(mri_images:List[np.array]):
     new_mri_images=[]
@@ -175,8 +142,8 @@ def compare_two_list(list_a,list_b):
     return len(list_a.intersection(list_b))
 
 
-def coverage(boxobject,groundtruth=np.array):
-    return len(boxobject.get_point_indices_within_boundinb_box(groundtruth))/len(groundtruth)
+# def coverage(boxobject,groundtruth=np.array):
+#     return len(boxobject.get_point_indices_within_boundinb_box(groundtruth))/len(groundtruth)
 
 
 
@@ -215,6 +182,6 @@ draw_bounding_box(boxes[0]["candidates"][0]["vertices"])
 
 
 
-#TODO testen: bounding boxes draw
+#TODO 
 #scores implementieren??
 #notebook integrieren
