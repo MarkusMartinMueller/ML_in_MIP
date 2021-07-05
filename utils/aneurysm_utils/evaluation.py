@@ -2,7 +2,8 @@
 import os
 import json
 import multiprocessing
-
+from matplotlib import pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
@@ -13,7 +14,7 @@ from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 # -
-
+from typing import List
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -27,7 +28,7 @@ from scipy import ndimage
 
 from aneurysm_utils.preprocessing import resize_mri
 from aneurysm_utils.environment import Environment
-
+from collections import defaultdict
 from sklearn import metrics as sk_metrics
 
 
@@ -223,7 +224,34 @@ def plot_slices(
                     interpolation=None,
                 )
 
+def draw_mask_3d(image:np.array,ax=None,zorder=0,markersize=0.8,alpha=1):
+    fig = plt.figure()
+    if ax==None:
+        ax = Axes3D(fig)
+    else:
+        ax=ax
+    ax.scatter(np.argwhere(image).T[0],np.argwhere(image).T[1],np.argwhere(image).T[2],s=markersize,alpha=alpha,zorder=zorder)
 
+
+
+def draw_bounding_box(candidates,vessel_array:np.array,aneurysm_array:np.array):
+    for candidate in candidates:
+        Z= candidate["vertices"]
+        Z=np.array(Z)
+        fig = plt.figure()
+        ax = Axes3D(fig)
+        verts= [(Z[0],Z[1]),(Z[0],Z[2]),(Z[0],Z[3]),(Z[6],Z[1]),(Z[7],Z[1]),(Z[2],Z[5]),
+        (Z[2],Z[7]),(Z[3],Z[5]),(Z[3],Z[6]),(Z[4],Z[7]),(Z[4],Z[6]),(Z[4],Z[5])]
+
+        for element in verts:
+            x=[element[0][0],element[1][0]]
+            y=[element[0][1],element[1][1]]
+            z=[element[0][2],element[1][2]]
+            ax.plot(x,y,z,c='r',zorder=2,linewidth=2,alpha=1)
+
+    
+    draw_mask_3d(vessel_array,ax,zorder=-1,markersize=3,alpha=0.2)
+    draw_mask_3d(aneurysm_array,ax,zorder=1,markersize=3,alpha=0.8)
 # +
 # ---------------------------- Interpretation methods --------------------------------
 # From: https://github.com/jrieke/cnn-interpretability
@@ -719,3 +747,24 @@ def heatmap_distance(a, b):
 
     # Symmetric KL Divergence (ill-defined for arrays with 0 values!).
     # return sp.stats.entropy(a, b) + sp.stats.entropy(b, a)
+
+#-------------------------------Postprocessing Evaluation-----------------------------
+def evaluate_dbscan(predicted:List[np.array],groundtruth:List[np.array],cases:List["str"]):
+    all_scores={}
+    for pred,truth,case in zip(predicted,groundtruth,cases):
+        all_scores[case]={}
+        for cluster in range(1,int(np.unique(pred)[-1])+1):
+            indices =list(np.array(np.where(pred==cluster)).T)
+            all_scores[case]["predicted_cluster_"+str(cluster)]={}
+            for true_cluster in range(1,int(np.unique(truth)[-1])+1):
+                true_indices = list(np.array(np.where(truth==true_cluster)).T)
+
+                all_scores[case]["predicted_cluster_"+str(cluster)]["true_cluster_"+str(true_cluster)]=compare_two_list(true_indices,indices)/len(indices)
+
+    return all_scores
+
+def compare_two_list(list_a,list_b):
+    list_a= set([tuple(x)for x in list_a])
+    list_b= set([tuple(x)for x in list_b])
+
+    return len(list_a.intersection(list_b))
