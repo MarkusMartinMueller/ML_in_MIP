@@ -141,44 +141,122 @@ def compare_two_list(list_a,list_b):
 
     return len(list_a.intersection(list_b))
 
+def min_max_normalize(mri_imgs: List[np.memmap]):
+    """Function which normalized the mri images with the min max method"""
+    for i in range(len(mri_imgs)):
+        mri_imgs[i] -= np.min(mri_imgs[i])
+        mri_imgs[i] /= np.max(mri_imgs[i])
+    return mri_imgs
 
-# def coverage(boxobject,groundtruth=np.array):
-#     return len(boxobject.get_point_indices_within_boundinb_box(groundtruth))/len(groundtruth)
+from skimage.filters import threshold_local
 
+def local_intensity_segmentation(mri_imgs: List[np.array],block_size: int=35)->List[np.array]:
+    for image in mri_imgs:
+
+        for slice in range(0,image.shape[2]):
+            local_thresh = threshold_local(image[:,:,slice], block_size, offset=0,method="gaussian")
+            image[:,:,slice]=np.where(np.greater(image[:,:,slice],local_thresh),image[:,:,slice],0)
+    return mri_imgs
+
+def coverage(boxobjects:List,labeled_aneurysm_mask:np.array):
+    total_score=0
+    for label in range(1,np.unique(labeled_aneurysm_mask)+1):
+        scorebefore=0
+        aneurysm = np.where(labeled_aneurysm_mask==label)
+        for box_dict in boxobjects:
+            score= len(box_dict["box_object"].get_point_indices_within_boundinb_box(aneurysm))/len(aneurysm)
+            if score>scorebefore:
+                scorebefore=score
+        total_score+=scorebefore
+    
+    return total_score/len(np.unique(labeled_aneurysm_mask)-1)
+
+def bboxfit(boxobjects:List,labeled_aneurysm_mask:np.array,shape:tuple=(256,256,220)):
+    total_score=0
+    shape= labeled_aneurysm_mask.shape
+    for label in range(1,np.unique(labeled_aneurysm_mask)+1):
+        scorebefore=0
+        aneurysm = np.where(labeled_aneurysm_mask==label)
+        for box_dict in boxobjects:
+            num_aneurysm_voxels_in_box=len(box_dict["box_object"].get_point_indices_within_boundinb_box(aneurysm))
+            num_voxels_in_box = len( box_dict["box_object"].get_point_indices_within_boundinb_box(np.indices(shape)))
+            score= num_aneurysm_voxels_in_box/num_voxels_in_box
+            if score>scorebefore:
+                scorebefore=score
+        total_score+=scorebefore
+    return total_score
+
+
+
+
+# data_path = Path('../../datasets')
+# print(os.getcwd())
+# images=[]
+# images_labeled_masks=[]
+# for i in range(1,10):
+#     image_number= f"A00{i}"
+#     image_orig_path = image_number+'_orig.nii.gz'
+#     image_vessel_path=image_number+'_vessel.nii.gz'
+#     image_aneurysm_path =image_number+'_masks.nii.gz'
+#     image_labeled_masks_path = image_number+'_labeledMasks.nii.gz'
+#     try:
+#         images.append(nib.load(data_path/image_aneurysm_path).get_fdata())
+#         images_labeled_masks.append(nib.load(data_path/image_labeled_masks_path).get_fdata())
+#     except:
+#         continue
+# for i in range(10,20):
+#     image_number= f"A0{i}"
+#     image_orig_path = image_number+'_orig.nii.gz'
+#     image_vessel_path=image_number+'_vessel.nii.gz'
+#     image_aneurysm_path =image_number+'_masks.nii.gz'
+#     image_labeled_masks_path = image_number+'_labeledMasks.nii.gz'
+#     try:
+#         images.append(nib.load(data_path/image_aneurysm_path).get_fdata())
+#         images_labeled_masks.append(nib.load(data_path/image_labeled_masks_path).get_fdata())
+#     except:
+#         continue
+
+
+# images_masks =dbscan(images)
+# boxes =bounding_boxes(images_masks)
+
+# draw_bounding_box(boxes[0]["candidates"][0]["vertices"])
+
+import os
+from pathlib import Path
+from typing import List
+import numpy as np
+from ipywidgets import widgets
+import matplotlib.pyplot as plt
+import nilearn.plotting as nip
+import nibabel as nib
+from matplotlib import pyplot
+from mpl_toolkits.mplot3d import Axes3D
 
 
 data_path = Path('../../datasets')
-print(os.getcwd())
-images=[]
-images_labeled_masks=[]
-for i in range(1,10):
-    image_number= f"A00{i}"
-    image_orig_path = image_number+'_orig.nii.gz'
-    image_vessel_path=image_number+'_vessel.nii.gz'
-    image_aneurysm_path =image_number+'_masks.nii.gz'
-    image_labeled_masks_path = image_number+'_labeledMasks.nii.gz'
-    try:
-        images.append(nib.load(data_path/image_aneurysm_path).get_fdata())
-        images_labeled_masks.append(nib.load(data_path/image_labeled_masks_path).get_fdata())
-    except:
-        continue
+vieworder=(2,1,0)
 for i in range(10,20):
     image_number= f"A0{i}"
     image_orig_path = image_number+'_orig.nii.gz'
     image_vessel_path=image_number+'_vessel.nii.gz'
     image_aneurysm_path =image_number+'_masks.nii.gz'
-    image_labeled_masks_path = image_number+'_labeledMasks.nii.gz'
+
+
+
     try:
-        images.append(nib.load(data_path/image_aneurysm_path).get_fdata())
-        images_labeled_masks.append(nib.load(data_path/image_labeled_masks_path).get_fdata())
+        vessel_mask = nib.load(data_path/image_vessel_path)
     except:
         continue
+    orig_image = nib.load(data_path/image_orig_path)
+    orig_image_data=min_max_normalize([orig_image.get_fdata()])
+    data = min_max_normalize([vessel_mask.get_fdata()]) 
+    aneurysm_image = nib.load(data_path/image_aneurysm_path)
+    aneurysm_data= min_max_normalize([aneurysm_image.get_fdata()])
+    #segmented = intensity_segmentation(orig_image_data,0.1)
+    segmented = local_intensity_segmentation(orig_image_data)                                 
+    graph_data = segmented_image_to_graph(segmented[0],aneurysm_data[0])
 
-
-images_masks =dbscan(images)
-boxes =bounding_boxes(images_masks)
-
-draw_bounding_box(boxes[0]["candidates"][0]["vertices"])
 
 
 
