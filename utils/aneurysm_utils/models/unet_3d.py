@@ -142,7 +142,9 @@ class Unet_3D(nn.Module):
             
             return self.final_conv(x)
         
+
         
+## test function to see if your shapes won't throw an dimension error
 def test():
     
     x = torch.rand((1,3,64,64,64)) ## batch,channel,height,width,depth
