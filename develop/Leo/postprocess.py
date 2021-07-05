@@ -12,7 +12,7 @@ import open3d
 from collections import defaultdict
 
 from scipy.ndimage import zoom
-
+from aneurysm_utils import postprocessing
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
@@ -160,39 +160,171 @@ def local_intensity_segmentation(mri_imgs: List[np.array],block_size: int=35)->L
 
 def coverage(boxobjects:List,labeled_aneurysm_mask:np.array):
     total_score=0
-    for label in range(1,np.unique(labeled_aneurysm_mask)+1):
-        scorebefore=0
-        aneurysm = np.where(labeled_aneurysm_mask==label)
-        for box_dict in boxobjects:
-            score= len(box_dict["box_object"].get_point_indices_within_boundinb_box(aneurysm))/len(aneurysm)
-            if score>scorebefore:
-                scorebefore=score
-        total_score+=scorebefore
-    
-    return total_score/len(np.unique(labeled_aneurysm_mask)-1)
+    for box_dict in boxobjects:
+            scorebefore=0
+            for label in range(1,int(np.unique(labeled_aneurysm_mask)[-1])+1):
+                aneurysm = np.array(np.where(labeled_aneurysm_mask==label)).T
+                score=len(box_dict["box_object"].get_point_indices_within_bounding_box(open3d.utility.Vector3dVector(aneurysm)))/len(aneurysm)
+                if score>scorebefore:
+                    scorebefore=score
+            total_score+=scorebefore    
+    # for label in range(1,np.unique(labeled_aneurysm_mask)+1):
+    #     aneurysm = np.where(labeled_aneurysm_mask==label)
+    #     total_score+= len(boxobjects[label-1]["box_object"].get_point_indices_within_boundinb_box(aneurysm))/len(aneurysm)
 
-def bboxfit(boxobjects:List,labeled_aneurysm_mask:np.array,shape:tuple=(256,256,220)):
+    
+    return total_score/(len(np.unique(labeled_aneurysm_mask))-1)
+
+def bboxfit(boxobjects:List,labeled_aneurysm_mask:np.array):
     total_score=0
     shape= labeled_aneurysm_mask.shape
-    for label in range(1,np.unique(labeled_aneurysm_mask)+1):
+    for box_dict in boxobjects:
+            scorebefore=0
+            for label in range(1,int(np.unique(labeled_aneurysm_mask)[-1])+1):
+                aneurysm = np.array(np.where(labeled_aneurysm_mask==label)).T
+                score=calc_max_distance_to_box(box_dict["box_object"],aneurysm)
+                if score>scorebefore:
+                    scorebefore=score
+            total_score+=scorebefore     
+        # for box_dict in boxobjects:
+        #     # num_aneurysm_voxels_in_box=len(box_dict["box_object"].get_point_indices_within_boundinb_box(aneurysm))
+        #     # num_voxels_in_box = len( box_dict["box_object"].get_point_indices_within_boundinb_box(np.indices(shape)))
+        #     # score= num_aneurysm_voxels_in_box/num_voxels_in_box
+        #     if score>scorebefore:
+        #         scorebefore=score
+        # total_score+=scorebefore
+    return total_score#/len(np.unique(labeled_aneurysm_mask)-1)
+
+
+def calc_max_distance_to_box(oriented_box,indices_aneurysm):
+    max_boundaries=np.amax(np.linalg.inv(oriented_box.R).dot(np.array(oriented_box.get_box_points()).T).T,axis=0)
+    min_boundaries=np.amin(np.linalg.inv(oriented_box.R).dot(np.array(oriented_box.get_box_points()).T).T,axis=0)
+    max_coords_aneurysm =np.amax(np.linalg.inv(oriented_box.R).dot(indices_aneurysm.T).T,axis=0)
+    min_coords_aneurysm =np.amin(np.linalg.inv(oriented_box.R).dot(indices_aneurysm.T).T,axis=0)
+    max_distance = max(np.max(np.abs(np.subtract(max_boundaries,max_coords_aneurysm))),np.max(np.abs(np.subtract(min_boundaries,min_coords_aneurysm))))
+    return max_distance
+
+
+def f2_score(predicted_labeled_mask,groundtruth_labeled_mask):
+    detected=0
+    false_positive=0
+    false_negative=0
+    for label in range(1,int(np.unique(predicted_labeled_mask)[-1])+1):
+        indices = list(np.array(np.where(predicted_labeled_mask==label)).T)
+        indices = [tuple(x)for x in indices]
+        for groundtruth_label in range(1,int(np.unique(groundtruth_labeled_mask)[-1])+1):
+            true_indices = list(np.array(np.where(groundtruth_labeled_mask==groundtruth_label)).T)
+            true_indices = [tuple(x)for x in true_indices]
+            if any(tuple(x) in true_indices for x in indices):
+                detected+=1
+            else:
+                false_positive+=1
+            if not any (x in indices for x in true_indices):
+                false_negative+=1
+    P=detected/(detected+false_positive)
+    R= detected/(detected+false_negative)
+    f2= 5*P*R/(4*P+R)
+    return f2
+
+from sklearn.preprocessing import MinMaxScaler
+
+def calc_scores_task_1(labeled_masks,groundtruth_labeled_masks,boxes):
+    scores_dict={"coverage_score":{"all_data":[]},"bbox_fit_score":{"all_data":[]},"f2_score":{"all_data":[]}}
+    for predicted,groundtruth,box_dict in zip(labeled_masks,groundtruth_labeled_masks,boxes):
+        scores_dict["coverage_score"]["all_data"].append(coverage(box_dict["candidates"],groundtruth))
+        scores_dict["bbox_fit_score"]["all_data"].append(bboxfit(box_dict["candidates"],groundtruth))
+        scores_dict["f2_score"]["all_data"].append(f2_score(predicted,groundtruth))
+    for key in scores_dict.keys():
+        scores_dict[key]["all_data"]=MinMaxScaler().fit_transform(np.array([scores_dict[key]["all_data"]]).T)
+        scores_dict[key]["average"]=np.mean(scores_dict[key]["all_data"])
+    return scores_dict
+
+def calc_volume_bias(labeled_mask,groundtruth_labeled_mask):
+    total_score=0
+    for label in range(1,int(np.unique(labeled_mask)[-1])+1):
+        indices = list(np.array(np.where(labeled_mask==label)).T)
         scorebefore=0
-        aneurysm = np.where(labeled_aneurysm_mask==label)
-        for box_dict in boxobjects:
-            num_aneurysm_voxels_in_box=len(box_dict["box_object"].get_point_indices_within_boundinb_box(aneurysm))
-            num_voxels_in_box = len( box_dict["box_object"].get_point_indices_within_boundinb_box(np.indices(shape)))
-            score= num_aneurysm_voxels_in_box/num_voxels_in_box
-            if score>scorebefore:
-                scorebefore=score
-        total_score+=scorebefore
-    return total_score
+        for groundtruth_label in range(1,int(np.unique(groundtruth_labeled_mask)[-1])+1):
+            true_indices = list(np.array(np.where(groundtruth_labeled_mask==groundtruth_label)).T)
+            score= abs((len(true_indices)-len(indices)))
+            if score<scorebefore:
+                    scorebefore=score
+            total_score+=scorebefore    
+    return total_score/(len(np.unique(groundtruth_labeled_mask))-1)
+
+def average_distance_score(labeled_mask,groundtruth_labeled_mask):
+    total_score=0
+    for label in range(1,int(np.unique(labeled_mask)[-1])+1):
+        indices = list(np.array(np.where(labeled_mask==label)).T)
+        scorebefore=0
+        for groundtruth_label in range(1,int(np.unique(groundtruth_labeled_mask)[-1])+1):
+            true_indices = list(np.array(np.where(groundtruth_labeled_mask==groundtruth_label)).T)
+            score=calc_average_distance(indices,true_indices)
+            if score<scorebefore:
+                    scorebefore=score
+            total_score+=scorebefore   
+    return total_score/(len(np.unique(groundtruth_labeled_mask))-1)
+
+from scipy.spatial import distance_matrix
+
+def calc_average_distance(indices,true_indices):
+    min_distances = np.amin(distance_matrix(indices,true_indices))/len(indices)
+    min_distances_groundtruth=np.amin(distance_matrix(true_indices,indices))/len(true_indices)
+    return min_distances+min_distances_groundtruth
+
+from sklearn.metrics import jaccard_score
+from skimage.metrics import hausdorff_distance
+from scipy.stats import pearsonr
+
+def hausdorff_distance_score(labeled_mask,groundtruth_labeled_mask):
+    total_score=0
+    for label in range(1,int(np.unique(labeled_mask)[-1])+1):
+        labeled= labeled_mask==label
+        scorebefore=0
+        for groundtruth_label in range(1,int(np.unique(groundtruth_labeled_mask)[-1])+1):
+            true_labeled = groundtruth_labeled_mask==groundtruth_label
+            score=hausdorff_distance(labeled,true_labeled)
+            if score<scorebefore:
+                    scorebefore=score
+            total_score+=scorebefore   
+    return total_score/(len(np.unique(groundtruth_labeled_mask))-1)
+
+def calc_scores_task_2(mri_imgs,mri_imgs_ground_truth,labeled_masks,groundtruth_labeled_masks):
+    scores_dict={"Jaccard":{"all_data":[]},"Haussdorf":{"all_data":[]},"Average_dist":{"all_data":[]},"Pearson_correlation":{"all_data":[]},"VolumeBias":{"all_data":[]}}
+    for mask,ground_truth,labeled_mask,groundtruth_labeled in zip(mri_imgs,mri_imgs_ground_truth,labeled_masks,groundtruth_labeled_masks):
+        scores_dict["Jaccard"]["all_data"].append(jaccard_score(ground_truth.flatten(),mask.flatten()))
+        scores_dict["Haussdorf"]["all_data"].append(hausdorff_distance_score(mask,ground_truth))
+        scores_dict["Pearson_correlation"]["all_data"].append(pearsonr(mask.flatten(),ground_truth.flatten())[0])
+        scores_dict["VolumeBias"]["all_data"].append(calc_volume_bias(labeled_mask,groundtruth_labeled))
+        scores_dict["Average_dist"]["all_data"].append(average_distance_score(labeled_mask,groundtruth_labeled))
+    
+    for key in scores_dict.keys():
+        scores_dict[key]["all_data"]=MinMaxScaler().fit_transform(np.array([scores_dict[key]["all_data"]]).T)
+        scores_dict[key]["average"]=np.mean(scores_dict[key]["all_data"])
+        scores_dict["VolumeBias"]["stdev"]=np.std(scores_dict["VolumeBias"]["all_data"])
+    return scores_dict
+
+def calc_total_segmentation_score(scores_dict):
+    total_score=0
+    for key in scores_dict.keys():
+        if key in ["Haussdorf","VolumeBias","Average_dist"]:
+            if scores_dict[key]["average"]==0:
+                total_score+=1
+            else:
+                total_score+=1/scores_dict[key]["average"]
+        else:
+            total_score+=scores_dict[key]["average"]
+
+    total_score+=1/scores_dict["VolumeBias"]["stdev"]
+    return total_score/6
 
 
 
 
-# data_path = Path('../../datasets')
-# print(os.getcwd())
-# images=[]
-# images_labeled_masks=[]
+data_path = Path('../../datasets')
+print(os.getcwd())
+images=[]
+images_labeled_masks=[]
 # for i in range(1,10):
 #     image_number= f"A00{i}"
 #     image_orig_path = image_number+'_orig.nii.gz'
@@ -204,58 +336,56 @@ def bboxfit(boxobjects:List,labeled_aneurysm_mask:np.array,shape:tuple=(256,256,
 #         images_labeled_masks.append(nib.load(data_path/image_labeled_masks_path).get_fdata())
 #     except:
 #         continue
+for i in range(10,15):
+    image_number= f"A0{i}"
+    image_orig_path = image_number+'_orig.nii.gz'
+    image_vessel_path=image_number+'_vessel.nii.gz'
+    image_aneurysm_path =image_number+'_masks.nii.gz'
+    image_labeled_masks_path = image_number+'_labeledMasks.nii.gz'
+    try:
+        images.append(nib.load(data_path/image_aneurysm_path).get_fdata())
+        images_labeled_masks.append(nib.load(data_path/image_labeled_masks_path).get_fdata())
+    except:
+        continue
+
+
+images_masks =dbscan(images)
+boxes =bounding_boxes(images_masks)
+calc_scores_task_2(images,images,images_masks,images_labeled_masks)
+# import os
+# from pathlib import Path
+# from typing import List
+# import numpy as np
+# from ipywidgets import widgets
+# import matplotlib.pyplot as plt
+# import nilearn.plotting as nip
+# import nibabel as nib
+# from matplotlib import pyplot
+# from mpl_toolkits.mplot3d import Axes3D
+
+
+# data_path = Path('../../datasets')
+# vieworder=(2,1,0)
 # for i in range(10,20):
 #     image_number= f"A0{i}"
 #     image_orig_path = image_number+'_orig.nii.gz'
 #     image_vessel_path=image_number+'_vessel.nii.gz'
 #     image_aneurysm_path =image_number+'_masks.nii.gz'
-#     image_labeled_masks_path = image_number+'_labeledMasks.nii.gz'
+
+
+
 #     try:
-#         images.append(nib.load(data_path/image_aneurysm_path).get_fdata())
-#         images_labeled_masks.append(nib.load(data_path/image_labeled_masks_path).get_fdata())
+#         vessel_mask = nib.load(data_path/image_vessel_path)
 #     except:
 #         continue
-
-
-# images_masks =dbscan(images)
-# boxes =bounding_boxes(images_masks)
-
-# draw_bounding_box(boxes[0]["candidates"][0]["vertices"])
-
-import os
-from pathlib import Path
-from typing import List
-import numpy as np
-from ipywidgets import widgets
-import matplotlib.pyplot as plt
-import nilearn.plotting as nip
-import nibabel as nib
-from matplotlib import pyplot
-from mpl_toolkits.mplot3d import Axes3D
-
-
-data_path = Path('../../datasets')
-vieworder=(2,1,0)
-for i in range(10,20):
-    image_number= f"A0{i}"
-    image_orig_path = image_number+'_orig.nii.gz'
-    image_vessel_path=image_number+'_vessel.nii.gz'
-    image_aneurysm_path =image_number+'_masks.nii.gz'
-
-
-
-    try:
-        vessel_mask = nib.load(data_path/image_vessel_path)
-    except:
-        continue
-    orig_image = nib.load(data_path/image_orig_path)
-    orig_image_data=min_max_normalize([orig_image.get_fdata()])
-    data = min_max_normalize([vessel_mask.get_fdata()]) 
-    aneurysm_image = nib.load(data_path/image_aneurysm_path)
-    aneurysm_data= min_max_normalize([aneurysm_image.get_fdata()])
-    #segmented = intensity_segmentation(orig_image_data,0.1)
-    segmented = local_intensity_segmentation(orig_image_data)                                 
-    graph_data = segmented_image_to_graph(segmented[0],aneurysm_data[0])
+#     orig_image = nib.load(data_path/image_orig_path)
+#     orig_image_data=min_max_normalize([orig_image.get_fdata()])
+#     data = min_max_normalize([vessel_mask.get_fdata()]) 
+#     aneurysm_image = nib.load(data_path/image_aneurysm_path)
+#     aneurysm_data= min_max_normalize([aneurysm_image.get_fdata()])
+#     #segmented = intensity_segmentation(orig_image_data,0.1)
+#     segmented = local_intensity_segmentation(orig_image_data)                                 
+#     graph_data = segmented_image_to_graph(segmented[0],aneurysm_data[0])
 
 
 

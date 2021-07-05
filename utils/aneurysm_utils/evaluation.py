@@ -22,15 +22,18 @@ import torch.optim as optim
 from torch.autograd import Variable
 from torch.utils.data import Dataset, DataLoader
 
+from scipy.spatial import distance_matrix
 import nibabel as nib
 from scipy.ndimage.interpolation import zoom
 from scipy import ndimage
-
+from sklearn.metrics import jaccard_score
+from skimage.metrics import hausdorff_distance
+from scipy.stats import pearsonr
 from aneurysm_utils.preprocessing import resize_mri
 from aneurysm_utils.environment import Environment
 from collections import defaultdict
 from sklearn import metrics as sk_metrics
-
+from sklearn.preprocessing import MinMaxScaler
 
 def evaluate_model(
     y_true: list, y_pred: list, segmentation: bool = None, prefix: str = None
@@ -768,3 +771,153 @@ def compare_two_list(list_a,list_b):
     list_b= set([tuple(x)for x in list_b])
 
     return len(list_a.intersection(list_b))
+
+
+#---------------------------------Scores------------------------------------------------
+
+
+def coverage(boxobjects:List,labeled_aneurysm_mask:np.array):
+    total_score=0
+    for box_dict in boxobjects:
+            scorebefore=0
+            for label in range(1,int(np.unique(labeled_aneurysm_mask)[-1])+1):
+                aneurysm = np.array(np.where(labeled_aneurysm_mask==label)).T
+                score=len(box_dict["box_object"].get_point_indices_within_bounding_box(open3d.utility.Vector3dVector(aneurysm)))/len(aneurysm)
+                if score>scorebefore:
+                    scorebefore=score
+            total_score+=scorebefore    
+    
+    return total_score/(len(np.unique(labeled_aneurysm_mask))-1)
+
+def bboxfit(boxobjects:List,labeled_aneurysm_mask:np.array):
+    total_score=0
+    shape= labeled_aneurysm_mask.shape
+    for box_dict in boxobjects:
+            scorebefore=0
+            for label in range(1,int(np.unique(labeled_aneurysm_mask)[-1])+1):
+                aneurysm = np.array(np.where(labeled_aneurysm_mask==label)).T
+                score=calc_max_distance_to_box(box_dict["box_object"],aneurysm)
+                if score>scorebefore:
+                    scorebefore=score
+            total_score+=scorebefore     
+    return total_score#/len(np.unique(labeled_aneurysm_mask)-1)
+
+
+def calc_max_distance_to_box(oriented_box,indices_aneurysm):
+    max_boundaries=np.amax(np.linalg.inv(oriented_box.R).dot(np.array(oriented_box.get_box_points()).T).T,axis=0)
+    min_boundaries=np.amin(np.linalg.inv(oriented_box.R).dot(np.array(oriented_box.get_box_points()).T).T,axis=0)
+    max_coords_aneurysm =np.amax(np.linalg.inv(oriented_box.R).dot(indices_aneurysm.T).T,axis=0)
+    min_coords_aneurysm =np.amin(np.linalg.inv(oriented_box.R).dot(indices_aneurysm.T).T,axis=0)
+    max_distance = max(np.max(np.abs(np.subtract(max_boundaries,max_coords_aneurysm))),np.max(np.abs(np.subtract(min_boundaries,min_coords_aneurysm))))
+    return max_distance
+
+
+def f2_score(predicted_labeled_mask,groundtruth_labeled_mask):
+    detected=0
+    false_positive=0
+    false_negative=0
+    for label in range(1,int(np.unique(predicted_labeled_mask)[-1])+1):
+        indices = list(np.array(np.where(predicted_labeled_mask==label)).T)
+        indices = [tuple(x)for x in indices]
+        for groundtruth_label in range(1,int(np.unique(groundtruth_labeled_mask)[-1])+1):
+            true_indices = list(np.array(np.where(groundtruth_labeled_mask==groundtruth_label)).T)
+            true_indices = [tuple(x)for x in true_indices]
+            if any(tuple(x) in true_indices for x in indices):
+                detected+=1
+            else:
+                false_positive+=1
+            if not any (x in indices for x in true_indices):
+                false_negative+=1
+    P=detected/(detected+false_positive)
+    R= detected/(detected+false_negative)
+    f2= 5*P*R/(4*P+R)
+    return f2
+
+
+
+def calc_scores_task_1(labeled_masks,groundtruth_labeled_masks,boxes):
+    scores_dict={"coverage_score":{"all_data":[]},"bbox_fit_score":{"all_data":[]},"f2_score":{"all_data":[]}}
+    for predicted,groundtruth,box_dict in zip(labeled_masks,groundtruth_labeled_masks,boxes):
+        scores_dict["coverage_score"]["all_data"].append(coverage(box_dict["candidates"],groundtruth))
+        scores_dict["bbox_fit_score"]["all_data"].append(bboxfit(box_dict["candidates"],groundtruth))
+        scores_dict["f2_score"]["all_data"].append(f2_score(predicted,groundtruth))
+    for key in scores_dict.keys():
+        scores_dict[key]["all_data"]=MinMaxScaler().fit_transform(np.array([scores_dict[key]["all_data"]]).T)
+        scores_dict[key]["average"]=np.mean(scores_dict[key]["all_data"])
+    return scores_dict
+
+def calc_volume_bias(labeled_mask,groundtruth_labeled_mask):
+    total_score=0
+    for label in range(1,int(np.unique(labeled_mask)[-1])+1):
+        indices = list(np.array(np.where(labeled_mask==label)).T)
+        scorebefore=0
+        for groundtruth_label in range(1,int(np.unique(groundtruth_labeled_mask)[-1])+1):
+            true_indices = list(np.array(np.where(groundtruth_labeled_mask==groundtruth_label)).T)
+            score= abs((len(true_indices)-len(indices)))
+            if score<scorebefore:
+                    scorebefore=score
+            total_score+=scorebefore    
+    return total_score/(len(np.unique(groundtruth_labeled_mask))-1)
+
+def average_distance_score(labeled_mask,groundtruth_labeled_mask):
+    total_score=0
+    for label in range(1,int(np.unique(labeled_mask)[-1])+1):
+        indices = list(np.array(np.where(labeled_mask==label)).T)
+        scorebefore=0
+        for groundtruth_label in range(1,int(np.unique(groundtruth_labeled_mask)[-1])+1):
+            true_indices = list(np.array(np.where(groundtruth_labeled_mask==groundtruth_label)).T)
+            score=calc_average_distance(indices,true_indices)
+            if score<scorebefore:
+                    scorebefore=score
+            total_score+=scorebefore   
+    return total_score/(len(np.unique(groundtruth_labeled_mask))-1)
+
+
+def calc_average_distance(indices,true_indices):
+    min_distances = np.amin(distance_matrix(indices,true_indices))/len(indices)
+    min_distances_groundtruth=np.amin(distance_matrix(true_indices,indices))/len(true_indices)
+    return min_distances+min_distances_groundtruth
+
+
+
+def hausdorff_distance_score(labeled_mask,groundtruth_labeled_mask):
+    total_score=0
+    for label in range(1,int(np.unique(labeled_mask)[-1])+1):
+        labeled= labeled_mask==label
+        scorebefore=0
+        for groundtruth_label in range(1,int(np.unique(groundtruth_labeled_mask)[-1])+1):
+            true_labeled = groundtruth_labeled_mask==groundtruth_label
+            score=hausdorff_distance(labeled,true_labeled)
+            if score<scorebefore:
+                    scorebefore=score
+            total_score+=scorebefore   
+    return total_score/(len(np.unique(groundtruth_labeled_mask))-1)
+
+def calc_scores_task_2(mri_imgs,mri_imgs_ground_truth,labeled_masks,groundtruth_labeled_masks):
+    scores_dict={"Jaccard":{"all_data":[]},"Haussdorf":{"all_data":[]},"Average_dist":{"all_data":[]},"Pearson_correlation":{"all_data":[]},"VolumeBias":{"all_data":[]}}
+    for mask,ground_truth,labeled_mask,groundtruth_labeled in zip(mri_imgs,mri_imgs_ground_truth,labeled_masks,groundtruth_labeled_masks):
+        scores_dict["Jaccard"]["all_data"].append(jaccard_score(ground_truth.flatten(),mask.flatten()))
+        scores_dict["Haussdorf"]["all_data"].append(hausdorff_distance_score(mask,ground_truth))
+        scores_dict["Pearson_correlation"]["all_data"].append(pearsonr(mask.flatten(),ground_truth.flatten())[0])
+        scores_dict["VolumeBias"]["all_data"].append(calc_volume_bias(labeled_mask,groundtruth_labeled))
+        scores_dict["Average_dist"]["all_data"].append(average_distance_score(labeled_mask,groundtruth_labeled))
+    
+    for key in scores_dict.keys():
+        scores_dict[key]["all_data"]=MinMaxScaler().fit_transform(np.array([scores_dict[key]["all_data"]]).T)
+        scores_dict[key]["average"]=np.mean(scores_dict[key]["all_data"])
+        scores_dict["VolumeBias"]["stdev"]=np.std(scores_dict["VolumeBias"]["all_data"])
+    return scores_dict
+
+def calc_total_segmentation_score(scores_dict):
+    total_score=0
+    for key in scores_dict.keys():
+        if key in ["Haussdorf","VolumeBias","Average_dist"]:
+            if scores_dict[key]["average"]==0:
+                total_score+=1
+            else:
+                total_score+=1/scores_dict[key]["average"]
+        else:
+            total_score+=scores_dict[key]["average"]
+
+    total_score+=1/scores_dict["VolumeBias"]["stdev"]
+    return total_score/6
