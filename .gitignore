@@ -203,3 +203,14 @@ cython_debug/
 datasets/*
 experiments/*
 
+
+
+**/*.npy
+
+
+
+
+*.npy
+
+
+
