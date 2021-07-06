@@ -12,28 +12,6 @@ from sklearn import preprocessing
 from sklearn.model_selection import train_test_split
 from tabulate import tabulate
 from monai.transforms import Spacing
-from multiprocessing import Pool
-
-"""
-def istarmap(self, func, iterable, chunksize=1):
-    # starmap-version of imap
-    self._check_running()
-    if chunksize < 1:
-        raise ValueError(
-            "Chunksize must be 1+, not {0:n}".format(
-                chunksize))
-
-    task_batches = mpp.Pool._get_tasks(func, iterable, chunksize)
-    result = mpp.IMapIterator(self)
-    self._taskqueue.put(
-        (
-            self._guarded_task_generation(result._job,
-                                          mpp.starmapstar,
-                                          task_batches),
-            result._set_length
-        ))
-    return (item for chunk in result for item in chunk)
-"""
 
 import aneurysm_utils
 
@@ -129,23 +107,6 @@ def get_case_images(
     
     return img_dict
 
-
-def load_mri_image(pool_input):
-    idx, row, prediction, resample_voxel_dim, resample_size, order = pool_input
-    nifti_orig = load_nifti(row["Path Orig"], resample_dim=resample_voxel_dim, resample_size=resample_size, order=order)
-    if prediction in ["mask", "vessel", "labeled"]:
-        labels = load_nifti(row[DF_DICT[prediction]], resample_dim=resample_voxel_dim, resample_size=resample_size, order=order)
-
-    else:
-        labels = row[DF_DICT[prediction]]
-        nifti_labeled_mask = load_nifti(row["Path Labeled Mask"], resample_dim=resample_voxel_dim, resample_size=resample_size, order=order)
-        nifti_labeled_mask[nifti_labeled_mask != row["Labeled Mask Index"]] = 0
-        # TODO: Add resample here
-        nifti_orig *= nifti_labeled_mask
-
-    return nifti_orig, labels, row["Case"]
-
-
 def load_mri_images(
     env: aneurysm_utils.Environment,
     df: pd.DataFrame,
@@ -168,7 +129,7 @@ def load_mri_images(
         mri_imgs (ndarray): List of loaded MRI images.
         labels (ndarray): List of labels corresponding to the MRI images.
     """
-    assert prediction in ["mask", "vessel", "rupture risk", "labeled"]
+    assert prediction in ["mask", "vessel", "rupture risk","labeled"]
 
     if case_list:
         df = df.loc[df["Case"].isin(case_list)]
@@ -176,37 +137,25 @@ def load_mri_images(
     mri_imgs = []
     labels = []
     participants = []
-        """
-    input_for_pool = []
-    for idx, row in df.iterrows():
-        input_for_pool.append((idx, row, prediction, resample_voxel_dim, resample_size, order))
 
-    pool = Pool(int(os.cpu_count()/2))
-    pool.istarmap = istarmap
-    data_outputs = list(
-        tqdm(pool.istarmap(load_mri_image, input_for_pool), total=len(input_for_pool)))
-    for data in data_outputs:
-        mri_imgs.append(data[0])
-        labels.append(data[1])
-        participants.append(data[2])
-
-
-    """    
     for idx, row in tqdm.tqdm(df.iterrows(), total=len(df)):
-        nifti_orig = load_nifti(row["Path Orig"], resample_dim=resample_voxel_dim, resample_size=resample_size, order=order)
-        if prediction in ["mask", "vessel", "labeled"]:
-            nifti_mask = load_nifti(row[DF_DICT[prediction]], resample_dim=resample_voxel_dim, resample_size=resample_size, order=order)
+        # nifti_orig = nib.load(row["Path Orig"])
+        nifti_orig = load_nifti(row["Path Orig"], resample_dim=resample_voxel_dim,resample_size=resample_size,order=order)
+        if prediction in ["mask", "vessel","labeled"]:
+            # nifti_mask = nib.load(row[DF_DICT[prediction]])
+            nifti_mask = load_nifti(row[DF_DICT[prediction]], resample_dim=resample_voxel_dim,resample_size=resample_size,order=order)
             labels.append(np.rint(nifti_mask))
+            #values, count = np.unique(np.rint(nifti_mask), return_counts=True)
+            #print(count, (count[1]/count[0]))
         else:
             labels.append(row[DF_DICT[prediction]])
-            nifti_labeled_mask = load_nifti(row["Path Labeled Mask"], resample_dim=resample_voxel_dim, resample_size=resample_size, order=order)
+            nifti_labeled_mask = load_nifti(row["Path Labeled Mask"], resample_dim=resample_voxel_dim,resample_size=resample_size,order=order)
             nifti_labeled_mask[nifti_labeled_mask != row["Labeled Mask Index"]] = 0
             # TODO: Add resample here
             nifti_orig *= nifti_labeled_mask
 
         mri_imgs.append(nifti_orig)
         participants.append(row["Case"])
-
 
     return mri_imgs, labels, participants
 
