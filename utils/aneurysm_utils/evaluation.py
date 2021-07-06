@@ -227,22 +227,30 @@ def plot_slices(
                     interpolation=None,
                 )
 
-def draw_mask_3d(image:np.array,ax=None,zorder=0,markersize=0.8,alpha=1):
+def draw_mask_3d(image:np.array,ax=None,zorder=0,markersize=0.8,alpha=1,limits=(0,0,0)):
     fig = plt.figure()
     if ax==None:
         ax = Axes3D(fig)
+        if limits!=(0,0,0):
+            ax.xlim3d=limits[0]
+            ax.ylim3d=limits[1]
+            ax.zlim3d=limits[2]
     else:
         ax=ax
     ax.scatter(np.argwhere(image).T[0],np.argwhere(image).T[1],np.argwhere(image).T[2],s=markersize,alpha=alpha,zorder=zorder)
 
 
 
-def draw_bounding_box(candidates,vessel_array:np.array,aneurysm_array:np.array):
+def draw_bounding_box(candidates,vessel_array:np.array,aneurysm_array:np.array,limits=(0,0,0)):
     for candidate in candidates:
         Z= candidate["vertices"]
         Z=np.array(Z)
         fig = plt.figure()
         ax = Axes3D(fig)
+        if limits!=(0,0,0):
+            ax.xlim3d=limits[0]
+            ax.ylim3d=limits[1]
+            ax.zlim3d=limits[2]
         verts= [(Z[0],Z[1]),(Z[0],Z[2]),(Z[0],Z[3]),(Z[6],Z[1]),(Z[7],Z[1]),(Z[2],Z[5]),
         (Z[2],Z[7]),(Z[3],Z[5]),(Z[3],Z[6]),(Z[4],Z[7]),(Z[4],Z[6]),(Z[4],Z[5])]
 
