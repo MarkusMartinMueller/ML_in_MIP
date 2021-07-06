@@ -176,7 +176,7 @@ def load_mri_images(
     mri_imgs = []
     labels = []
     participants = []
-        """
+    """
     input_for_pool = []
     for idx, row in df.iterrows():
         input_for_pool.append((idx, row, prediction, resample_voxel_dim, resample_size, order))

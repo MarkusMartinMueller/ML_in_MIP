@@ -12,25 +12,44 @@ import open3d
 def dbscan(mri_images:List[np.array]):
     new_mri_images=[]
     for image in mri_images:
-        db = DBSCAN(eps=1, min_samples=3).fit(np.array(np.where(image==1)).T)
+        db = DBSCAN(eps=2, min_samples=30).fit(np.array(np.where(image==1)).T)
         labels =db.labels_
         empty= np.zeros(image.shape)
+        print(f"labels={np.unique(labels)}")
         for count,coords in enumerate(np.array(np.where(image==1)).T):
+            print(coords)
+            print(labels[count]+1)
             empty[coords]=labels[count]+1
         new_mri_images.append(empty)
-    return mri_images
+    return new_mri_images
 
 def remove_border_candidates(mri_images:List[np.array],offset):
     for image in mri_images:
         borders= image.shape
+        borders= (borders[0]-offset,borders[1]-offset,borders[2]-offset)
+        print(np.unique(image))
         for cluster in range(1,int(np.unique(image)[-1])+1):
-            coords=np.where(image==cluster)
-            if np.any(np.equal(np.amax(coords,axis=1)+1,borders-offset)) or np.min(coords)==offset:
+            print(cluster)
+            coords=np.array(np.where(image==cluster)).T
+            print(coords)
+            print(f"coords shape:{coords.shape}")
+            if np.any(np.equal(np.amax(coords,axis=1)+1,borders)) or np.min(coords)==offset:
                 image[image==cluster]=0
 
     return mri_images
 
-
+def remove_noise(mri_images:List[np.array],size):
+    for image in mri_images:
+        print(np.unique(image))
+        for cluster in range(1,int(np.unique(image)[-1])+1):
+            volumen= len(np.array(np.where(image==cluster)).T)
+            print(volumen)
+            print(f"volumen{volumen}")
+            if volumen<size:
+                image=np.where(image==cluster,0,image)
+        for element in range(0,size(np.unique(image))):
+            image[image==element]=element
+    return mri_images
 
 def resample(mri_images:List[np.array],dimension=(256,256,220),order:int=3,binary:bool=False):
     new_mri_images=[]
@@ -72,17 +91,21 @@ def postprocess(
     if params.dbscan:
         env.log.info("Postprocessing: DBSCAN...")
         mri_imgs = dbscan(mri_imgs)
+        if "size" not in params:
+            params["size"]= 90
+        mri_imgs = remove_noise(mri_imgs,params["size"])
     if params.evaluate_dbscan:
         if "invidual_aneurysm_labels" not in params or "cases" not in params:
             env.log.info("Postprocessing: Can not evaluate DBSCAN because no ground truth or case list were given")
         else:
             env.log.info("Postprocessing: Evaluating DBSCAN")
             env.log.info(evaluate_dbscan(mri_imgs,params.invidual_aneurysm_labels,params.cases))
+            
     if params.remove_border_candidates:
         if "offset" not in params:
-            params.offest=0
+            params.offset=0
         env.log.info("Postprocessing: Removing border candidates...")
-        mri_imgs=remove_border_candidates(mri_imgs,params.offset)
+        mri_imgs=remove_border_candidates(mri_imgs,params["offset"])
         
     if params.resample:
         
