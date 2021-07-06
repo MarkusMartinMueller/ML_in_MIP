@@ -34,6 +34,7 @@ from aneurysm_utils.environment import Environment
 from collections import defaultdict
 from sklearn import metrics as sk_metrics
 from sklearn.preprocessing import MinMaxScaler
+import open3d
 
 def evaluate_model(
     y_true: list, y_pred: list, segmentation: bool = None, prefix: str = None
@@ -790,6 +791,8 @@ def coverage(boxobjects:List,labeled_aneurysm_mask:np.array):
             scorebefore=0
             for label in range(1,int(np.unique(labeled_aneurysm_mask)[-1])+1):
                 aneurysm = np.array(np.where(labeled_aneurysm_mask==label)).T
+                print(len(aneurysm))
+                print(len(box_dict["box_object"].get_point_indices_within_bounding_box(open3d.utility.Vector3dVector(aneurysm))))
                 score=len(box_dict["box_object"].get_point_indices_within_bounding_box(open3d.utility.Vector3dVector(aneurysm)))/len(aneurysm)
                 if score>scorebefore:
                     scorebefore=score
@@ -824,21 +827,31 @@ def f2_score(predicted_labeled_mask,groundtruth_labeled_mask):
     detected=0
     false_positive=0
     false_negative=0
+    all_indices =list(np.array(np.where(predicted_labeled_mask>0)).T)
+    all_indices = [tuple(x)for x in all_indices]
+    for groundtruth_label in range(1,int(np.unique(groundtruth_labeled_mask)[-1])+1):
+            true_indices = list(np.array(np.where(groundtruth_labeled_mask==groundtruth_label)).T)
+            true_indices = [tuple(x)for x in true_indices]
+            if any(x in all_indices for x in true_indices):
+                detected+=1
+            else:
+                false_negative+=1
+
+    all_indices_groundtruth =list(np.array(np.where(groundtruth_labeled_mask>0)).T)
+    all_indices_groundtruth = [tuple(x)for x in all_indices_groundtruth]
     for label in range(1,int(np.unique(predicted_labeled_mask)[-1])+1):
         indices = list(np.array(np.where(predicted_labeled_mask==label)).T)
         indices = [tuple(x)for x in indices]
-        for groundtruth_label in range(1,int(np.unique(groundtruth_labeled_mask)[-1])+1):
-            true_indices = list(np.array(np.where(groundtruth_labeled_mask==groundtruth_label)).T)
-            true_indices = [tuple(x)for x in true_indices]
-            if any(tuple(x) in true_indices for x in indices):
-                detected+=1
-            else:
+        if not any (x in all_indices_groundtruth for x in indices):
                 false_positive+=1
-            if not any (x in indices for x in true_indices):
-                false_negative+=1
-    P=detected/(detected+false_positive)
-    R= detected/(detected+false_negative)
-    f2= 5*P*R/(4*P+R)
+    if detected ==0 and false_positive ==0 and false_negative ==0:
+        f2=1.0
+    elif detected ==0:
+        f2=0.0
+    else:
+        P=detected/(detected+false_positive)
+        R= detected/(detected+false_negative)
+        f2= 5*P*R/(4*P+R)
     return f2
 
 
