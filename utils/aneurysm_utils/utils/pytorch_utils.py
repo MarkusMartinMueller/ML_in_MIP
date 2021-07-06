@@ -8,7 +8,7 @@ from torch.utils.data import Dataset
 from torch_geometric.data import InMemoryDataset
 from aneurysm_utils.utils.point_cloud_utils import segmented_image_to_graph
 from aneurysm_utils.utils.ignite_utils import prepare_batch
-import time
+
 
 def predict(model, loader, cuda=False, apply_softmax=True):
     predictions = []
@@ -76,11 +76,14 @@ class PytorchDataset(Dataset):
         num_classes=2,
         segmentation=False,
     ):
-        self.mri_imgs = mri_imgs
+        self.mri_imgs = np.copy(mri_imgs)
         self.segmentation = segmentation
-        self.labels = np.array(labels).astype(np.int_)
-        start_time = time.time()
-        self.labels = torch.from_numpy(self.labels)
+        if self.segmentation:
+            self.labels = np.copy(labels)
+        else:
+            pass
+        self.labels = torch.LongTensor(self.labels)
+
         self.transform = transform
         self.target_transform = target_transform
         self.z_factor = z_factor
@@ -122,6 +125,50 @@ class PytorchDataset(Dataset):
                 "Scans of id  " + str(idx) + "with label  " + str(self.labels[idx])
             )
             plt.show()
+
+
+"""
+class PytorchgeometricDataset(Dataset_Geometric):
+    def __init__(self, mri_images, labels, root, save_dir, split="train", transform=None, pre_transform=None,forceprocessing =False):
+        self.forceprocessing = forceprocessing
+        self.save_dir = save_dir
+        self.mri_images = mri_images
+        self.labels = labels
+        super(PytorchgeometricDataset, self).__init__(root, transform, pre_transform)
+        
+    @property
+    def processed_file_names(self):
+        if os.path.exists(self.processed_dir) and not self.forceprocessing:
+            return ([file for file in os.listdir(self.processed_dir) if file.startswith("data")])
+        else:
+            return []
+    @property
+    def raw_file_names(self):
+        return os.listdir(self.root)
+    
+    @property
+    def processed_dir(self) -> str:
+        return self.save_dir
+
+    def process(self):
+
+        self.cases = set()
+        for idx, (image,label) in enumerate(zip(self.mri_images,self.labels)):
+            graph =segmented_image_to_graph(image,label)
+            torch.save(graph, os.path.join(self.save_dir, "data_{}_{}.pt".format(idx, split)))
+        self.forceprocessing=False     
+
+    def len(self):
+        return len(self.processed_file_names)
+
+    def get(self, idx):
+        try:
+            data = torch.load(os.path.join(self.processed_dir, 'data_{}.pt'.format(idx)))
+            return data
+        except:
+            print(f"Couldnt read data_{idx}.pt")
+            return None
+"""
 
 
 class PyTorchGeometricDataset(InMemoryDataset):

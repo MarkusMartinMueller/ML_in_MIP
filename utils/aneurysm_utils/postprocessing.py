@@ -17,9 +17,9 @@ def dbscan(mri_images:List[np.array]):
         empty= np.zeros(image.shape)
         print(f"labels={np.unique(labels)}")
         for count,coords in enumerate(np.array(np.where(image==1)).T):
-            print(coords)
-            print(labels[count]+1)
+            
             empty[coords]=labels[count]+1
+        print(np.unique(empty))
         new_mri_images.append(empty)
     return new_mri_images
 
