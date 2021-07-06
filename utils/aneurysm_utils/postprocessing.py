@@ -20,12 +20,12 @@ def dbscan(mri_images:List[np.array]):
         new_mri_images.append(empty)
     return mri_images
 
-def remove_border_candidates(mri_images:List[np.array]):
+def remove_border_candidates(mri_images:List[np.array],offset):
     for image in mri_images:
         borders= image.shape
         for cluster in range(1,int(np.unique(image)[-1])+1):
             coords=np.where(image==cluster)
-            if np.any(np.equal(np.amax(coords,axis=1)+1,borders)) or np.min(coords)==0:
+            if np.any(np.equal(np.amax(coords,axis=1)+1,borders-offset)) or np.min(coords)==offset:
                 image[image==cluster]=0
 
     return mri_images
@@ -79,8 +79,10 @@ def postprocess(
             env.log.info("Postprocessing: Evaluating DBSCAN")
             env.log.info(evaluate_dbscan(mri_imgs,params.invidual_aneurysm_labels,params.cases))
     if params.remove_border_candidates:
+        if "offset" not in params:
+            params.offest=0
         env.log.info("Postprocessing: Removing border candidates...")
-        mri_imgs=remove_border_candidates(mri_imgs)
+        mri_imgs=remove_border_candidates(mri_imgs,params.offset)
         
     if params.resample:
         
