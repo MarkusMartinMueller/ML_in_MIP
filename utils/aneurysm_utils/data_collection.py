@@ -14,6 +14,27 @@ from tabulate import tabulate
 from monai.transforms import Spacing
 from multiprocessing import Pool
 
+"""
+def istarmap(self, func, iterable, chunksize=1):
+    # starmap-version of imap
+    self._check_running()
+    if chunksize < 1:
+        raise ValueError(
+            "Chunksize must be 1+, not {0:n}".format(
+                chunksize))
+
+    task_batches = mpp.Pool._get_tasks(func, iterable, chunksize)
+    result = mpp.IMapIterator(self)
+    self._taskqueue.put(
+        (
+            self._guarded_task_generation(result._job,
+                                          mpp.starmapstar,
+                                          task_batches),
+            result._set_length
+        ))
+    return (item for chunk in result for item in chunk)
+"""
+
 import aneurysm_utils
 
 DF_DICT = {"mask": "Path Mask", "vessel": "Path Vessel", "rupture risk": "Rupture Status", "labeled":"Path Labeled Mask"}
@@ -155,13 +176,15 @@ def load_mri_images(
     mri_imgs = []
     labels = []
     participants = []
-
+        """
     input_for_pool = []
     for idx, row in df.iterrows():
         input_for_pool.append((idx, row, prediction, resample_voxel_dim, resample_size, order))
 
     pool = Pool(int(os.cpu_count()/2))
-    data_outputs = pool.map(load_mri_image, input_for_pool)
+    pool.istarmap = istarmap
+    data_outputs = list(
+        tqdm(pool.istarmap(load_mri_image, input_for_pool), total=len(input_for_pool)))
     for data in data_outputs:
         mri_imgs.append(data[0])
         labels.append(data[1])
@@ -183,7 +206,7 @@ def load_mri_images(
 
         mri_imgs.append(nifti_orig)
         participants.append(row["Case"])
-    """
+
 
     return mri_imgs, labels, participants
 
