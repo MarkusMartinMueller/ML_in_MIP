@@ -9,49 +9,49 @@ from addict import Dict
 from aneurysm_utils.evaluation import evaluate_dbscan
 import open3d
 
-def dbscan(mri_images:List[np.array]):
+def dbscan(mri_images:List[np.array],eps=3,min_samples=30):
     new_mri_images=[]
     for image in mri_images:
-        db = DBSCAN(eps=2, min_samples=30).fit(np.array(np.where(image==1)).T)
+        indices= np.array(np.where(image==1)).T
+        db = DBSCAN(eps=eps, min_samples=min_samples).fit(np.array(indices))
         labels =db.labels_
         empty= np.zeros(image.shape)
-        print(f"labels={np.unique(labels)}")
-        for count,coords in enumerate(np.array(np.where(image==1)).T):
-            
-            empty[coords]=labels[count]+1
-        print(np.unique(empty))
+        for count,coords in enumerate(indices):
+            empty[coords[0],coords[1],coords[2]]=labels[count]+1
         new_mri_images.append(empty)
     return new_mri_images
 
 def remove_border_candidates(mri_images:List[np.array],offset):
+    new_mri_images=[]
     for image in mri_images:
         borders= image.shape
         borders= (borders[0]-offset,borders[1]-offset,borders[2]-offset)
-        print(np.unique(image))
-        for cluster in range(1,int(np.unique(image)[-1])+1):
-            print(cluster)
-            coords=np.array(np.where(image==cluster)).T
-            print(coords)
-            print(f"coords shape:{coords.shape}")
+
+        for cluster in np.unique(image):
+            if cluster==0:
+                continue
+            coords=np.where(image==cluster)
             if np.any(np.equal(np.amax(coords,axis=1)+1,borders)) or np.min(coords)==offset:
                 image[image==cluster]=0
-
-    return mri_images
+        for count,element in enumerate(np.unique(image)):
+            image[image==element]=count
+        new_mri_images.append(image)
+        
+    return new_mri_images
 
 def remove_noise(mri_images:List[np.array],size):
+    new_mri_images=[]
     for image in mri_images:
-        print(np.unique(image))
         for cluster in range(1,int(np.unique(image)[-1])+1):
             volumen= len(np.array(np.where(image==cluster)).T)
-            print(volumen)
-            print(f"volumen{volumen}")
             if volumen<size:
                 image=np.where(image==cluster,0,image)
-        for element in range(0,size(np.unique(image))):
-            image[image==element]=element
-    return mri_images
+            
+       
+        new_mri_images.append(image)
+    return new_mri_images
 
-def resample(mri_images:List[np.array],dimension=(256,256,220),order:int=3,binary:bool=False):
+def resample(mri_images:List[np.array],dimension=(256,256,220),order:int=2,binary:bool=False):
     new_mri_images=[]
     for image in mri_images:
         shape=image.shape
@@ -90,10 +90,17 @@ def postprocess(
     params = Dict(preprocessing_params)
     if params.dbscan:
         env.log.info("Postprocessing: DBSCAN...")
-        mri_imgs = dbscan(mri_imgs)
+        if "eps" not in params:
+            params["eps"]=3
+        if "min_samples" not in params:
+            params["min_samples"]=30
+            
+        mri_imgs = dbscan(mri_imgs,params["eps"],params["min_samples"])
         if "size" not in params:
             params["size"]= 90
+        env.log.info("Postprocessing: Removing noise...")
         mri_imgs = remove_noise(mri_imgs,params["size"])
+  
     if params.evaluate_dbscan:
         if "invidual_aneurysm_labels" not in params or "cases" not in params:
             env.log.info("Postprocessing: Can not evaluate DBSCAN because no ground truth or case list were given")
@@ -108,9 +115,9 @@ def postprocess(
         mri_imgs=remove_border_candidates(mri_imgs,params["offset"])
         
     if params.resample:
-        
+        print(np.unique(mri_imgs[0]))
         if "order" not in params:
-            params.order=2
+            params.order=1
         if "resample_size" not in params:
             params.resample_size=(256,256,220)
         env.log.info(f"Postprocessing: Resample to Size{params.resample_size}")

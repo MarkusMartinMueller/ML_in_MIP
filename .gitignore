@@ -207,6 +207,8 @@ experiments/*
 
 **/*.npy
 
+**/*.pkl
+*.pkl
 
 
 

@@ -76,13 +76,9 @@ class PytorchDataset(Dataset):
         num_classes=2,
         segmentation=False,
     ):
-        self.mri_imgs = np.copy(mri_imgs)
+        self.mri_imgs = mri_imgs
         self.segmentation = segmentation
-        if self.segmentation:
-            self.labels = np.copy(labels)
-        else:
-            pass
-        self.labels = torch.LongTensor(self.labels)
+        self.labels = torch.LongTensor(labels)
 
         self.transform = transform
         self.target_transform = target_transform
