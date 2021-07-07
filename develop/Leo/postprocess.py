@@ -42,7 +42,11 @@ SOFTWARE.
 Computation of purity score with sklearn.
 """
 
+<<<<<<< HEAD
 # !/usr/bin/env python
+=======
+#!/usr/bin/env python
+>>>>>>> b8637802a376ac0d05f77cbafc2b59a49a636115
 # -*- coding: utf-8 -*-
 
 from sklearn.metrics import accuracy_score
@@ -390,6 +394,12 @@ calc_scores_task_2(images,images,images_masks,images_labeled_masks)
 
 
 
+<<<<<<< HEAD
 # TODO 
 # scores implementieren??
 # notebook integrieren
+=======
+#TODO 
+#scores implementieren??
+#notebook integrieren
+>>>>>>> b8637802a376ac0d05f77cbafc2b59a49a636115
