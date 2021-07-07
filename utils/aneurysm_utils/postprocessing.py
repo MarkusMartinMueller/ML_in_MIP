@@ -90,6 +90,12 @@ def bounding_boxes(mri_images:List[np.array],cases:List[str]=None):
         bounding_boxes.append(boxes)
     return bounding_boxes
 
+def create_nifits(mri_images,cases,path_cada="../../cada-challenge-master/cada_segmentation/test-gt/",path_datasets='../../datasets/'):
+    data_path = Path(path_datasets)
+    for count,image in enumerate(mri_images):
+        affine = nib.load(data_path / f'{cases[count]}_orig.nii.gz').affine
+        img = nib.Nifti1Image(image, affine)
+        img.to_filename(os.path.join(path_cada,f'{cases[count]}_labeledMasks.nii.gz'))
 
 def create_task_one_json(bounding_boxes,cases=None,processing_times=None,path="reference.json"):
     dicto={

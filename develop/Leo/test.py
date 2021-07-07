@@ -28,7 +28,6 @@ with open("neuralnet_output.pkl","rb") as fp:
 
 for image in invidual_labels_test:
     print(np.unique(image))
-data_path = Path('../../datasets/')
 bounding_boxes =postprocessing.bounding_boxes(invidual_labels_test)
 cases=["A130_R","A118","A120","A115","A133","A073","A072","A084","A077"]
 postprocessing.create_task_one_json(bounding_boxes,cases=cases,path="../../cada-challenge-master/cada_detection/test/reference.json")
@@ -37,7 +36,9 @@ postprocessing.create_task_one_json(bounding_boxes,cases=cases,path="../../cada-
 #score_dict2=evaluation.calc_scores_task_2(aneurysm_labels_new,labels_test,mri_imgs,invidual_labels_test)
 #score_dict1=evaluation.calc_scores_task_1(invidual_labels_test,invidual_labels_test,bounding_boxes)
 #print(score_dict1)
-for count,image in enumerate(invidual_labels_test):
-    affine = nib.load(data_path / f'{cases[count]}_orig.nii.gz').affine
-    img = nib.Nifti1Image(image, affine)
-    img.to_filename(os.path.join("../../cada-challenge-master/cada_segmentation/test-gt/",f'{cases[count]}_labeledMasks.nii.gz'))
+def create_nifits(mri_images,cases,path_cada="../../cada-challenge-master/cada_segmentation/test-gt/",path_datasets='../../datasets/'):
+    data_path = Path(path_datasets)
+    for count,image in enumerate(mri_images):
+        affine = nib.load(data_path / f'{cases[count]}_orig.nii.gz').affine
+        img = nib.Nifti1Image(image, affine)
+        img.to_filename(os.path.join(path_cada,f'{cases[count]}_labeledMasks.nii.gz'))
