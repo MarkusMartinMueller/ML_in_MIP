@@ -20,6 +20,8 @@ from aneurysm_utils.utils import pytorch_utils
 from aneurysm_utils import evaluation
 from aneurysm_utils.utils.ignite_utils import prepare_batch
 from aneurysm_utils.utils.point_cloud_utils import extend_point_cloud
+import time
+import psutil
 
 # -------------------------- Train model ---------------------------------
 
@@ -297,6 +299,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
     # summary_writer = SummaryWriter(log_dir=run_dir)
 
     # Get artifacts for the experiment run
+    start_time = time.time()
     mri_imgs_train, labels_train = artifacts["train_data"]
     mri_imgs_val, labels_val = artifacts["val_data"]
     mri_imgs_test, labels_test = None, None
@@ -377,11 +380,13 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
         params.segmentation = True
     else:
         params.segmentation = None
+    print("---Parameters Loading took %s seconds ---" % (time.time() - start_time))
+    start_time = time.time()
 
     # Get Model Architecture
     model, model_params = get_model(params)
     exp.artifacts["model"] = model
-
+    print("---Model Loading took %s seconds ---" % (time.time() - start_time))
     # print('number of trainable parameters =', count_parameters(model))
 
     # Log all params to comet
@@ -391,7 +396,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
 
     # TODO: use augmentation
     # assert params.sampler is not None, "Sampler is not implemented"
-
+    start_time = time.time()
     if params.model_name != "SegNet":
         train_dataset = pytorch_utils.PytorchDataset(
             mri_imgs_train,
@@ -399,6 +404,8 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
             dtype=np.float64,
             segmentation=params.segmentation,
         )
+
+        print("---Dataset creation took %s seconds ---" % (time.time() - start_time))
         train_loader = DataLoader(
             train_dataset,
             batch_size=params.batch_size,
@@ -406,6 +413,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
             num_workers=params.num_threads if params.num_threads else 0,
             pin_memory=params.use_cuda,
         )
+        print("---Data loader took %s seconds ---" % (time.time() - start_time))
         validation_dataset = pytorch_utils.PytorchDataset(
             mri_imgs_val, labels_val, dtype=np.float64, segmentation=params.segmentation
         )
@@ -429,6 +437,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
             num_workers=params.num_threads if params.num_threads else 0,
             pin_memory=params.use_cuda,
         )
+        print("---Data Loading took %s seconds ---" % (time.time() - start_time))
     else:
         datasets_folder = exp._env.project_folder
         train_dataset = pytorch_utils.PyTorchGeometricDataset(
@@ -472,7 +481,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
         )
 
     # train_dataset.print_image()
-
+    
     exp.log.info("Train dataset loaded. Length: " + str(len(train_loader.dataset)))
     exp.log.info("Validation dataset loaded. Length: " + str(len(val_loader.dataset)))
 
@@ -683,6 +692,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
             summary_writer.add_scalar("training/sen", sen, engine.state.epoch)
             """
             empty_cuda_cache(engine)
+            print('RAM memory % used:', psutil.virtual_memory()[2])
 
     @trainer.on(Events.EPOCH_COMPLETED)
     def log_validation_results(engine):
@@ -718,6 +728,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
             summary_writer.add_scalar("validation/sen", sen, engine.state.epoch)
             """
             empty_cuda_cache(engine)
+            print('RAM memory % used:', psutil.virtual_memory()[2])
 
     # create model files
     if params.save_models:
@@ -734,12 +745,13 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
         )
 
     trainer.run(train_loader, max_epochs=params.epochs)
-
+    print('RAM memory % used:', psutil.virtual_memory()[2])
     if mri_imgs_test is not None:
         with exp.comet_exp.test():
             pred_classes, pred_scores = zip(
                 *pytorch_utils.predict(model, test_loader, cuda=params.use_cuda)
             )
+            print('RAM memory % used:', psutil.virtual_memory()[2])
             if params.model_name == "SegNet":
                 pred_classes, pred_scores = extend_point_cloud(
                     pred_classes, pred_scores, test_dataset, labels_test
@@ -751,6 +763,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
                     params.segmentation,
                 )
             )
+            print('RAM memory % used:', psutil.virtual_memory()[2])
 
     # TODO not really needed?
     exp.comet_exp.end()

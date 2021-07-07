@@ -82,7 +82,7 @@ class PytorchDataset(Dataset):
             self.labels = np.copy(labels)
         else:
             pass
-        self.labels = torch.LongTensor(labels)
+        self.labels = torch.LongTensor(self.labels)
 
         self.transform = transform
         self.target_transform = target_transform

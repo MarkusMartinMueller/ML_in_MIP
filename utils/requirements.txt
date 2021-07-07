@@ -17,10 +17,4 @@ itkwidgets
 openpyxl
 monai
 pytorch3dunet @ git+https://github.com/wolny/pytorch-3dunet.git
-torch
-torchvision
-torchaudio
-torch-sparse
-torch-cluster
-torch-scatter
-torch-geometric==1.7.0
+h5py

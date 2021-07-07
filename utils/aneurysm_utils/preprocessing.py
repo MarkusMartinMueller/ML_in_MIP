@@ -51,6 +51,79 @@ def resize_mri(img, size, interpolation=0):
     # img_arr = img_arr.resize((256,256,128))
     return sp.ndimage.zoom(img, zoom_factors, order=interpolation)
 
+def patch_creater(image, patch_size):
+    """
+    Creates overlapping patches from  preprocessed image, the number of patches is fixed to certain value
+    and the size can be changed as well
+    ----------
+    image: numpy.array
+        image which will be sliced into patches
+    patch_size: tuple of int
+        size of the patch, equal in each direction
+   
+    Returns
+    -------
+    numpy.array  (n_patches,channels,patch_size,patch_size,patch_size)
+        list containing the patches
+
+    """
+    
+    
+
+
+    dim = np.array(image.shape)# size of the image
+    n_patches = np.ceil(dim/patch_size).astype(int) # calculates the number of patches for each dim, to cover all voxel at least once
+    rest  = n_patches * patch_size%dim ## calculates the remaining voxel which are going to overlap 
+
+    patches = []
+    for i in range(n_patches[0]):
+        
+        if i == n_patches[0]-1: ## only the last cube is an overlapped cube
+            start_x = i*patch_size-rest[0]## indices were to start and stop the slicing true the image array
+            stop_x= (i+1)* patch_size-rest[0]
+              
+        else:    
+            start_x = i*patch_size
+            stop_x = (i+1)* patch_size
+
+        
+              
+        for j in range(n_patches[1]):
+            if j == n_patches[1]-1: ## only the last cube is an overlapped cube
+                start_y = j*patch_size-rest[1]
+                stop_y= (j+1)* patch_size-rest[1]
+              
+            else:    
+                start_y = j*patch_size
+                stop_y = (j+1)* patch_size
+            
+            for k in range(n_patches[2]):
+                if k == n_patches[2]-1: 
+                    start_z = k*patch_size-rest[2]
+                    stop_z = (k+1)* patch_size-rest[2]
+              
+                else:    
+                    start_z = k*patch_size
+                    stop_z = (k+1)* patch_size
+
+              
+                patches.append(image[start_x:stop_x,start_y:stop_y,start_z:stop_z])
+        
+        
+    #return np.array([*patches])
+    return patches
+
+
+def patch_list(data_list,patch_size):
+    list_patch = []
+    print(len(data_list))
+    for n in range(len(data_list)):
+        patch = patch_creater(data_list[n],patch_size)
+        print(len(patch),np.array(patch).shape)
+        list_patch = list_patch+patch
+    
+
+    return list_patch
 
 def get_mri_template(env: aneurysm_utils.Environment, shape):
     # TODO: check shape and modality?
@@ -226,6 +299,7 @@ def check_mri_shapes(mri_imgs: list):
         if count > most_common_count:
             most_common_count = count
             most_common_shape = shape
+
         print("%s: %7d" % (shape, count))
 
     """

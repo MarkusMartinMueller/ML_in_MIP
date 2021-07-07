@@ -13,7 +13,8 @@ from aneurysm_utils.models import (
     unet,
     simple_cnn,
     unet_3d,
-    pointnet
+    pointnet,
+    attention_unet
 )
 
 
@@ -55,6 +56,7 @@ def get_model(params: Dict):
         "SimpleCNN3D",
         "SimpleCNN2D",
         "Unet3D",
+        "Attention_Unet",
         "SegNet",
 
     ]
@@ -306,6 +308,14 @@ def get_model(params: Dict):
             out_channels= params.num_classes, 
             filters = [64,128,256],
             )
+    elif params.model_name == "Attention_Unet":
+        model = attention_unet.unet_grid_attention_3D(feature_scale=4, 
+                                                      n_classes=2, 
+                                                      is_deconv=True, 
+                                                      in_channels=1,
+                                                      nonlocal_mode='concatenation',  
+                                                      attention_dsample=(2,2,2), is_batchnorm=True       
+        )
     elif params.model_name == "LinearModel3D":
         # TODO: support last_fc,
         model = linear_3d.LinearModel3D(
