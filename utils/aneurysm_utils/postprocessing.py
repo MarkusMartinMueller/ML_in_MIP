@@ -13,7 +13,9 @@ def dbscan(mri_images:List[np.array],eps=3,min_samples=30):
     new_mri_images=[]
     for image in mri_images:
         indices= np.array(np.where(image==1)).T
+
         db = DBSCAN(eps=eps, min_samples=min_samples).fit(np.array(indices))
+
         labels =db.labels_
         empty= np.zeros(image.shape)
         for count,coords in enumerate(indices):

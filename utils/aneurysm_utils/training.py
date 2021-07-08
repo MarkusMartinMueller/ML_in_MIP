@@ -529,11 +529,11 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
         if params.criterion_weights:
             weights = params.criterion_weights
             if isinstance(weights, int) or isinstance(weights, float):
-                criterion = DiceCELoss(softmax = True,ce_weight= 
+                criterion = DiceCELoss(softmax = False,ce_weight= 
                     torch.FloatTensor([1.0, weights]).to(device)
                 )
             else:
-                criterion = DiceCELoss(softmax = True,ce_weight= 
+                criterion = DiceCELoss(softmax = False,ce_weight= 
                     torch.FloatTensor(weights).to(device)
                 )
         
