@@ -243,7 +243,7 @@ def draw_mask_3d(image:np.array,ax=None,zorder=0,markersize=0.8,alpha=1,limits=(
 
 
 
-def draw_bounding_box(candidates,vessel_array:np.array,aneurysm_array:np.array,limits=(0,0,0)):
+def draw_bounding_box(candidates,vessel_array:np.array=None,aneurysm_array:np.array=None,limits=(0,0,0)):
     for candidate in candidates:
         Z= candidate["vertices"]
         Z=np.array(Z)
@@ -264,9 +264,11 @@ def draw_bounding_box(candidates,vessel_array:np.array,aneurysm_array:np.array,l
 
 
 
-    draw_mask_3d(vessel_array,ax,zorder=-1,markersize=3,alpha=0.2)
-    draw_mask_3d(aneurysm_array,ax,zorder=1,markersize=3,alpha=0.8)
-  
+    if vessel_array is not None:
+        draw_mask_3d(vessel_array,ax,zorder=-1,markersize=3,alpha=0.2)
+    if aneurysm_array is not None:
+        draw_mask_3d(aneurysm_array,ax,zorder=1,markersize=3,alpha=0.8)
+
 
 
 # +
