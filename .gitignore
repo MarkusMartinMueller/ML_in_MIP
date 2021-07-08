@@ -206,12 +206,13 @@ cython_debug/
 datasets/*
 experiments/*
 
-
-
+<<<<<<< HEAD
 
 
 **/*.npy
 
+**/*.pkl
+*.pkl
 
 
 

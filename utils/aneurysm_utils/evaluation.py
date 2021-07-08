@@ -238,18 +238,20 @@ def draw_mask_3d(image:np.array,ax=None,zorder=0,markersize=0.8,alpha=1,limits=(
             ax.zlim3d=limits[2]
     else:
         ax=ax
-
-    ax.scatter(np.argwhere(image).T[0],np.argwhere(image).T[1],np.argwhere(image).T[2],s=markersize,alpha=alpha,zorder=zorder)
+    for cluster in range(1,int(np.unique(image)[-1]+1)):
+        ax.scatter(np.argwhere(image==cluster).T[0],np.argwhere(image==cluster).T[1],np.argwhere(image==cluster).T[2],s=markersize,alpha=alpha,zorder=zorder)
 
 
 
 def draw_bounding_box(candidates,vessel_array:np.array=None,aneurysm_array:np.array=None,limits=(0,0,0)):
+    fig = plt.figure()
+    ax = Axes3D(fig)
     for candidate in candidates:
         Z= candidate["vertices"]
         Z=np.array(Z)
-        fig = plt.figure()
-        ax = Axes3D(fig)
+       
         if limits!=(0,0,0):
+            print("setting new limits")
             ax.xlim3d=limits[0]
             ax.ylim3d=limits[1]
             ax.zlim3d=limits[2]
@@ -263,13 +265,11 @@ def draw_bounding_box(candidates,vessel_array:np.array=None,aneurysm_array:np.ar
             ax.plot(x,y,z,c='r',zorder=2,linewidth=2,alpha=1)
 
 
-
     if vessel_array is not None:
         draw_mask_3d(vessel_array,ax,zorder=-1,markersize=3,alpha=0.2)
     if aneurysm_array is not None:
         draw_mask_3d(aneurysm_array,ax,zorder=1,markersize=3,alpha=0.8)
-
-
+    fig.show()
 
 # +
 # ---------------------------- Interpretation methods --------------------------------

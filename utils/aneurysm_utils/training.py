@@ -432,7 +432,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
         )
         test_loader = DataLoader(
             test_dataset,
-            batch_size=1,  # TODO: use fixed batch size of 5
+            batch_size=params.batch_size,  # TODO: use fixed batch size of 5
             shuffle=False,
             num_workers=params.num_threads if params.num_threads else 0,
             pin_memory=params.use_cuda,
@@ -529,11 +529,11 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
         if params.criterion_weights:
             weights = params.criterion_weights
             if isinstance(weights, int) or isinstance(weights, float):
-                criterion = DiceCELoss(softmax = True,ce_weight= 
+                criterion = DiceCELoss(softmax = False,ce_weight= 
                     torch.FloatTensor([1.0, weights]).to(device)
                 )
             else:
-                criterion = DiceCELoss(softmax = True,ce_weight= 
+                criterion = DiceCELoss(softmax = False,ce_weight= 
                     torch.FloatTensor(weights).to(device)
                 )
         
@@ -680,6 +680,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
                     "spec": spec,
                     "sen": sen,
                     "avg_loss": avg_nll,
+                    "lr": optimizer.param_groups[0]["lr"]
                 },
                 epoch=engine.state.epoch,
             )

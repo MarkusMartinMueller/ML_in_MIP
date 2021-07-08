@@ -8,15 +8,18 @@ import aneurysm_utils
 from addict import Dict
 from aneurysm_utils.evaluation import evaluate_dbscan
 import open3d
-
 import json
+from pathlib import Path
+import nibabel as nib
+import os
 
-
-def dbscan(mri_images:List[np.array]):
+def dbscan(mri_images:List[np.array],eps=3,min_samples=30):
     new_mri_images=[]
     for image in mri_images:
         indices= np.array(np.where(image==1)).T
-        db = DBSCAN(eps=3, min_samples=30).fit(np.array(indices))
+
+        db = DBSCAN(eps=eps, min_samples=min_samples).fit(np.array(indices))
+
         labels =db.labels_
         empty= np.zeros(image.shape)
         for count,coords in enumerate(indices):
@@ -132,7 +135,12 @@ def postprocess(
     params = Dict(preprocessing_params)
     if params.dbscan:
         env.log.info("Postprocessing: DBSCAN...")
-        mri_imgs = dbscan(mri_imgs)
+        if "eps" not in params:
+            params["eps"]=3
+        if "min_samples" not in params:
+            params["min_samples"]=30
+            
+        mri_imgs = dbscan(mri_imgs,params["eps"],params["min_samples"])
         if "size" not in params:
             params["size"]= 90
         env.log.info("Postprocessing: Removing noise...")
@@ -154,7 +162,7 @@ def postprocess(
     if params.resample:
         print(np.unique(mri_imgs[0]))
         if "order" not in params:
-            params.order=1
+            params.order=0
         if "resample_size" not in params:
             params.resample_size=(256,256,220)
         env.log.info(f"Postprocessing: Resample to Size{params.resample_size}")

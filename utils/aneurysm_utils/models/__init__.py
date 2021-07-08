@@ -298,8 +298,8 @@ def get_model(params: Dict):
             num_classes= params.num_classes,
             dropout = params.dropout,
             start_radius=params.start_radius,
-            sample_rate1= params.sample_rate1,
-            sample_rate2= params.sample_rate2
+            #sample_rate1= params.sample_rate1,
+            #sample_rate2= params.sample_rate2
             
         )
     elif params.model_name == "Unet3D":
