@@ -1,0 +1,44 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# dotenv
+.env
+
+# virtualenv
+.venv
+venv/
+ENV/
+
+# Pycharm
+.idea/
+
+# Mac
+.DS_Store
+
+# zips
+*.tar.gz
+*.zip
+*.nii.gz
+*.stl
+
+# Pycharm
+.idea/
+
+# jupyter
+*.ipynb
+
+# test files
+.*/test/.*
+*.json
+*.nii.gz
+*.nii
+data
+
+# training reference
+!training-data/task1/reference.json
+!training-data/task3/reference.json

@@ -1,4 +1,4 @@
-# +
+
 import os
 import json
 import multiprocessing
@@ -13,7 +13,7 @@ import matplotlib.animation
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
-# -
+
 from typing import List
 import torch
 import torch.nn as nn
@@ -238,6 +238,7 @@ def draw_mask_3d(image:np.array,ax=None,zorder=0,markersize=0.8,alpha=1,limits=(
             ax.zlim3d=limits[2]
     else:
         ax=ax
+
     ax.scatter(np.argwhere(image).T[0],np.argwhere(image).T[1],np.argwhere(image).T[2],s=markersize,alpha=alpha,zorder=zorder)
 
 
@@ -263,11 +264,13 @@ def draw_bounding_box(candidates,vessel_array:np.array=None,aneurysm_array:np.ar
             z=[element[0][2],element[1][2]]
             ax.plot(x,y,z,c='r',zorder=2,linewidth=2,alpha=1)
 
+
     if vessel_array is not None:
         draw_mask_3d(vessel_array,ax,zorder=-1,markersize=3,alpha=0.2)
     if aneurysm_array is not None:
         draw_mask_3d(aneurysm_array,ax,zorder=1,markersize=3,alpha=0.8)
     fig.show()
+
 # +
 # ---------------------------- Interpretation methods --------------------------------
 # From: https://github.com/jrieke/cnn-interpretability
@@ -946,3 +949,4 @@ def calc_total_segmentation_score(scores_dict):
 
     total_score+=1/scores_dict["VolumeBias"]["stdev"]
     return total_score/6
+

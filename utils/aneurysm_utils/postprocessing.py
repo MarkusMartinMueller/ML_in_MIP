@@ -8,6 +8,7 @@ import aneurysm_utils
 from addict import Dict
 from aneurysm_utils.evaluation import evaluate_dbscan
 import open3d
+import json
 
 def dbscan(mri_images:List[np.array],eps=3,min_samples=30):
     new_mri_images=[]
@@ -71,20 +72,55 @@ def bounding_boxes(mri_images:List[np.array],cases:List[str]=None):
         if cases != None:
             boxes["dataset_id"]=cases[count]
         for cluster in range(1,int(np.unique(image)[-1]+1)):
-            print(np.unique(image))
+
             box={}
             indices= open3d.utility.Vector3dVector(np.array(np.where(image==cluster)).T)
             oriented_box=open3d.geometry.OrientedBoundingBox.create_from_points(indices)
+            
+            box["position"]=oriented_box.get_center().tolist()                   
+            box["object_oriented_bounding_box"]={
+                "extent":oriented_box.extent.tolist(),
+                "orthogonal_offset_vectors":oriented_box.R.tolist()
+                }
 
-            box["position"]=oriented_box.get_center()                   
-            box["extent"]= oriented_box.extent
-            box["orthogonal_offset_vector"]=oriented_box.R
-            box["box_object"]=oriented_box
+
             box["vertices"]=oriented_box.get_box_points()
             boxes["candidates"].append(box)
 
         bounding_boxes.append(boxes)
     return bounding_boxes
+
+def create_nifits(mri_images,cases,path_cada="../../cada-challenge-master/cada_segmentation/test-gt/",path_datasets='../../datasets/'):
+    data_path = Path(path_datasets)
+    for count,image in enumerate(mri_images):
+        affine = nib.load(data_path / f'{cases[count]}_orig.nii.gz').affine
+        img = nib.Nifti1Image(image, affine)
+        img.to_filename(os.path.join(path_cada,f'{cases[count]}_labeledMasks.nii.gz'))
+
+def create_task_one_json(bounding_boxes,cases=None,processing_times=None,path="reference.json"):
+    dicto={
+    "grand_challenge_username": "cake",
+    "used_hardware_specification": {
+        "CPU": "Intel Core i9 9900K 8x 3.60GHz",
+        "GPU": "NVIDIA RTX 2080 Ti",
+        "#GPUs": 1,
+        "RAM_in_GB": 4,
+        "additional_remarks": "special hardware requirements, other comments"
+    }
+    }
+    for count,box_entry in enumerate( bounding_boxes):
+        if "dataset_id" not in box_entry and cases != None:
+            box_entry["dataset_id"]= cases[count]
+        if "processing_time_in_seconds" not in box_entry and processing_times !=None:
+            box_entry["processing_time_in_seconds"]=processing_times[count]
+        else:
+            box_entry["processing_time_in_seconds"]=22.7
+        for candidate in box_entry["candidates"]:
+            candidate.pop("vertices", None)
+    dicto["task_1_results"]=bounding_boxes
+    with open(path,"w") as f:
+        json.dump(dicto,f)
+
 
 def postprocess(
     env: aneurysm_utils.Environment, mri_imgs: list, preprocessing_params: dict
