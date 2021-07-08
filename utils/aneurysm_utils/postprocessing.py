@@ -9,6 +9,9 @@ from addict import Dict
 from aneurysm_utils.evaluation import evaluate_dbscan
 import open3d
 import json
+from pathlib import Path
+import nibabel as nib
+import os
 
 def dbscan(mri_images:List[np.array],eps=3,min_samples=30):
     new_mri_images=[]
@@ -155,7 +158,7 @@ def postprocess(
     if params.resample:
         print(np.unique(mri_imgs[0]))
         if "order" not in params:
-            params.order=1
+            params.order=0
         if "resample_size" not in params:
             params.resample_size=(256,256,220)
         env.log.info(f"Postprocessing: Resample to Size{params.resample_size}")
