@@ -75,7 +75,11 @@ def bounding_boxes(mri_images:List[np.array],cases:List[str]=None):
 
             box={}
             indices= open3d.utility.Vector3dVector(np.array(np.where(image==cluster)).T)
+            from aneurysm_utils import evaluation
+            from matplotlib import pyplot as plt
+            evaluation.draw_mask_3d(np.where(image==cluster,image,0))
             oriented_box=open3d.geometry.OrientedBoundingBox.create_from_points(indices)
+            plt.savefig("test.png")
             
             box["position"]=oriented_box.get_center().tolist()                   
             box["object_oriented_bounding_box"]={
