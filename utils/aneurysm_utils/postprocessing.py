@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 import nibabel as nib
 import os
+from nibabel.affines import apply_affine
 
 def dbscan(mri_images:List[np.array],eps=3,min_samples=30):
     new_mri_images=[]
@@ -78,12 +79,8 @@ def bounding_boxes(mri_images:List[np.array],cases:List[str]=None):
 
             box={}
             indices= open3d.utility.Vector3dVector(np.array(np.where(image==cluster)).T)
-            from aneurysm_utils import evaluation
-            from matplotlib import pyplot as plt
-            evaluation.draw_mask_3d(np.where(image==cluster,image,0))
             oriented_box=open3d.geometry.OrientedBoundingBox.create_from_points(indices)
-            plt.savefig("test.png")
-            
+
             box["position"]=oriented_box.get_center().tolist()                   
             box["object_oriented_bounding_box"]={
                 "extent":oriented_box.extent.tolist(),
@@ -104,7 +101,8 @@ def create_nifits(mri_images,cases,path_cada="../../cada-challenge-master/cada_s
         img = nib.Nifti1Image(image, affine)
         img.to_filename(os.path.join(path_cada,f'{cases[count]}_labeledMasks.nii.gz'))
 
-def create_task_one_json(bounding_boxes,cases=None,processing_times=None,path="reference.json"):
+def create_task_one_json(bounding_boxes,cases,processing_times=None,path="reference.json",path_datasets='../../datasets/'):
+    data_path = Path(path_datasets)
     dicto={
     "grand_challenge_username": "cake",
     "used_hardware_specification": {
@@ -116,6 +114,7 @@ def create_task_one_json(bounding_boxes,cases=None,processing_times=None,path="r
     }
     }
     for count,box_entry in enumerate( bounding_boxes):
+        affine =nib.load(data_path / f'{cases[count]}_orig.nii.gz').affine
         if "dataset_id" not in box_entry and cases != None:
             box_entry["dataset_id"]= cases[count]
         if "processing_time_in_seconds" not in box_entry and processing_times !=None:
@@ -124,9 +123,26 @@ def create_task_one_json(bounding_boxes,cases=None,processing_times=None,path="r
             box_entry["processing_time_in_seconds"]=22.7
         for candidate in box_entry["candidates"]:
             candidate.pop("vertices", None)
+            rotation=candidate["object_oriented_bounding_box"]["orthogonal_offset_vectors"]
+            rotation =apply_affine(affine,rotation)
+            candidate["position"]=transform_to_desired_format(candidate["position"],rotation,affine)
+            candidate["object_oriented_bounding_box"]["extent"]=transform_to_desired_format(candidate["object_oriented_bounding_box"]["extent"],rotation,affine)
+            # candidate["position"]=list(affine @ np.array(candidate['position'] + [1]))
+            # candidate["position"].pop()
+            # candidate["position"]=list(np.linalg.inv(candidate["object_oriented_bounding_box"]["orthogonal_offset_vectors"]).dot(candidate["position"]))
+            # candidate["object_oriented_bounding_box"]["extent"]=list(affine @ np.array(candidate["object_oriented_bounding_box"]['extent'] + [1]))
+            # candidate["object_oriented_bounding_box"]["extent"].pop()
+            # candidate["object_oriented_bounding_box"]["extent"]
     dicto["task_1_results"]=bounding_boxes
     with open(path,"w") as f:
         json.dump(dicto,f)
+
+def transform_to_desired_format(x,rotation,affine):
+    x=list(affine @ np.array(x + [1]))
+    x.pop()
+    return x
+    #return list(np.linalg.inv(rotation).dot(x))
+
 
 
 def postprocess(

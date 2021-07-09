@@ -159,8 +159,10 @@ def calculate_inverse_affine(affine):
 
 
 class CadaDetection(ClassificationEvaluation):
-    def __init__(self):
+    def __init__(self, ground_truth_path, predictions_path):
         super().__init__(
+            ground_truth_path=ground_truth_path,
+            predictions_path=predictions_path,
             file_loader=JSONLoader(),
             validators=(
                 ExpectedColumnNamesValidator(expected=("dataset_id", "processing_time_in_seconds", "candidates")),
@@ -276,4 +278,4 @@ class CadaDetection(ClassificationEvaluation):
 
 
 if __name__ == "__main__":
-    CadaDetection().evaluate()
+    CadaDetection(Path("ground-truth"),Path("test")).evaluate()

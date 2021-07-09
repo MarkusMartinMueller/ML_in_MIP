@@ -28,8 +28,10 @@ with open("neuralnet_output.pkl","rb") as fp:
 
 for image in invidual_labels_test:
     print(np.unique(image))
-bounding_boxes =postprocessing.bounding_boxes([invidual_labels_test[3]])
-evaluation.draw_bounding_box(bounding_boxes[3]["candidates"])
+bounding_boxes =postprocessing.bounding_boxes(invidual_labels_test)
+cases=["A130_R","A118","A120","A115","A133","A073","A072","A084","A077"]
+postprocessing.create_task_one_json(bounding_boxes,cases)
+#evaluation.draw_bounding_box(bounding_boxes[3]["candidates"])
 
 # cases=["A130_R","A118","A120","A115","A133","A073","A072","A084","A077"]
 # postprocessing.create_task_one_json(bounding_boxes,cases=cases,path="../../cada-challenge-master/cada_detection/test/reference.json")
