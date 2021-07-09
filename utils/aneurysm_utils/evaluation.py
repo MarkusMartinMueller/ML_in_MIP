@@ -49,7 +49,7 @@ def evaluate_model(
         prefix = ""
     else:
         prefix = prefix + "_"
-
+    
     metrics[prefix + "accuracy"] = sk_metrics.accuracy_score(y_true, y_pred)
     metrics[prefix + "bal_acc"] = sk_metrics.balanced_accuracy_score(y_true, y_pred)
     try:
@@ -241,7 +241,7 @@ def draw_mask_3d(image:np.array,ax=None,zorder=0,markersize=0.8,alpha=1,limits=(
     for cluster in range(1,int(np.unique(image)[-1]+1)):
         ax.scatter(np.argwhere(image==cluster).T[0],np.argwhere(image==cluster).T[1],np.argwhere(image==cluster).T[2],s=markersize,alpha=alpha,zorder=zorder)
 
-
+#def draw_ori_image(image:np.array,ax=None,markersize=)
 
 def draw_bounding_box(candidates,vessel_array:np.array=None,aneurysm_array:np.array=None,limits=(0,0,0)):
     fig = plt.figure()

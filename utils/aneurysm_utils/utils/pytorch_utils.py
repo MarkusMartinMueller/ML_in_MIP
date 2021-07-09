@@ -34,6 +34,7 @@ def predict(model, loader, cuda=False, apply_softmax=True):
                 output_class = output.max(1)[1].data[0].cpu().numpy()
                 output_probability = output.max(1)[0].data[0].cpu().numpy()
         predictions.append((output_class, output_probability))
+    
     return predictions
 
 

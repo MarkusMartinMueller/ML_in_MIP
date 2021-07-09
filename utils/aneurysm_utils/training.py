@@ -432,7 +432,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
         )
         test_loader = DataLoader(
             test_dataset,
-            batch_size=params.batch_size,  # TODO: use fixed batch size of 5
+            batch_size= 1,#params.batch_size,  # TODO: use fixed batch size of 5
             shuffle=False,
             num_workers=params.num_threads if params.num_threads else 0,
             pin_memory=params.use_cuda,
@@ -757,6 +757,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
                 pred_classes, pred_scores = extend_point_cloud(
                     pred_classes, pred_scores, test_dataset, labels_test
                 )
+            
             exp.comet_exp.log_metrics(
                 evaluation.evaluate_model(
                     labels_test,
