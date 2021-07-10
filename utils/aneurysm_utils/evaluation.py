@@ -241,7 +241,23 @@ def draw_mask_3d(image:np.array,ax=None,zorder=0,markersize=0.8,alpha=1,limits=(
     for cluster in range(1,int(np.unique(image)[-1]+1)):
         ax.scatter(np.argwhere(image==cluster).T[0],np.argwhere(image==cluster).T[1],np.argwhere(image==cluster).T[2],s=markersize,alpha=alpha,zorder=zorder)
 
-#def draw_ori_image(image:np.array,ax=None,markersize=)
+def draw_image(image:np.array,ax=None,zorder=0,markersize=0.8,transparency:bool=True,limits=(0,0,0)):
+    fig = plt.figure()
+    if ax==None:
+        ax = Axes3D(fig)
+        if limits!=(0,0,0):
+            ax.xlim3d=limits[0]
+            ax.ylim3d=limits[1]
+            ax.zlim3d=limits[2]
+    else:
+        ax=ax
+    if transparency:
+        alpha= image[image>0]
+    else:
+        alpha=alpha
+    cmap = plt.cm.Spectral
+    ax.scatter(np.argwhere(image>0).T[0],np.argwhere(image>0).T[1],np.argwhere(image>0).T[2],s=markersize,alpha=alpha,zorder=zorder,c=cmap(image[image>0]))
+
 
 def draw_bounding_box(candidates,vessel_array:np.array=None,aneurysm_array:np.array=None,limits=(0,0,0)):
     fig = plt.figure()
