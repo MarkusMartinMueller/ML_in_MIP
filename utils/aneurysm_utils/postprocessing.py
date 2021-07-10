@@ -18,7 +18,10 @@ def dbscan(mri_images:List[np.array],eps=3,min_samples=30):
     new_mri_images=[]
     for image in mri_images:
         indices= np.array(np.where(image==1)).T
-
+        if len(indices)==0:
+            print("No aneurysms found")
+            new_mri_images.append(image)
+            continue
         db = DBSCAN(eps=eps, min_samples=min_samples).fit(np.array(indices))
 
         labels =db.labels_
@@ -58,7 +61,7 @@ def remove_noise(mri_images:List[np.array],size):
         new_mri_images.append(image)
     return new_mri_images
 
-def resample(mri_images:List[np.array],dimension=(256,256,220),order:int=2,binary:bool=False):
+def resample(mri_images:List[np.array],dimension=(256,256,220),order:int=0,binary:bool=False):
     new_mri_images=[]
     for image in mri_images:
         shape=image.shape

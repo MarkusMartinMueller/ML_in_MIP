@@ -253,10 +253,11 @@ def draw_image(image:np.array,ax=None,zorder=0,markersize=0.8,transparency:bool=
         ax=ax
     if transparency:
         alpha= image[image>0]
+        alpha = np.where(alpha>0.15,alpha,0.01)
     else:
-        alpha=alpha
-    cmap = plt.cm.Spectral
-    ax.scatter(np.argwhere(image>0).T[0],np.argwhere(image>0).T[1],np.argwhere(image>0).T[2],s=markersize,alpha=alpha,zorder=zorder,c=cmap(image[image>0]))
+        alpha=1
+    cmap = plt.get_cmap('YlOrRd')
+    ax.scatter(np.argwhere(image>0).T[0],np.argwhere(image>0).T[1],np.argwhere(image>0).T[2],s=markersize,alpha=image[image>0],zorder=zorder,c=cmap(image[image>0]))
 
 
 def draw_bounding_box(candidates,vessel_array:np.array=None,aneurysm_array:np.array=None,limits=(0,0,0)):
