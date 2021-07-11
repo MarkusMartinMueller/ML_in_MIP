@@ -7,6 +7,8 @@ pointnet2_classification.py
 *.pt
 *.npy
 *.pkl
+*.nii.gz
+**/*.nii.gz
 **/*.pkl
 .devcontainer/
 data/ModelNet10
