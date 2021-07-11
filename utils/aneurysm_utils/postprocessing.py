@@ -109,7 +109,7 @@ def create_nifits(mri_images,cases,path_cada="../../cada-challenge-master/cada_s
         img = nib.Nifti1Image(image, affine)
         img.to_filename(os.path.join(path_cada,f'{cases[count]}_labeledMasks.nii.gz'))
 
-def create_task_one_json(bounding_boxes,cases,processing_times=None,path="reference.json",path_datasets='../../datasets/'):
+def create_task_one_json(images,cases,processing_times=None,path="reference.json",path_datasets='../../datasets/'):
     data_path = Path(path_datasets)
     dicto={
     "grand_challenge_username": "cake",
@@ -121,35 +121,36 @@ def create_task_one_json(bounding_boxes,cases,processing_times=None,path="refere
         "additional_remarks": "special hardware requirements, other comments"
     }
     }
-    for count,box_entry in enumerate( bounding_boxes):
+    dicto["task_1_results"]=[]
+    for count,image in enumerate( images):
+        box_entry={}
         affine =nib.load(data_path / f'{cases[count]}_orig.nii.gz').affine
-        if "dataset_id" not in box_entry and cases != None:
-            box_entry["dataset_id"]= cases[count]
-        if "processing_time_in_seconds" not in box_entry and processing_times !=None:
+        box_entry["dataset_id"]= cases[count]
+        if processing_times !=None:
             box_entry["processing_time_in_seconds"]=processing_times[count]
         else:
             box_entry["processing_time_in_seconds"]=22.7
-        for candidate in box_entry["candidates"]:
-            candidate.pop("vertices", None)
-            rotation=candidate["object_oriented_bounding_box"]["orthogonal_offset_vectors"]
-            rotation =apply_affine(affine,rotation)
-            candidate["position"]=transform_to_desired_format(candidate["position"],rotation,affine)
-            candidate["object_oriented_bounding_box"]["extent"]=transform_to_desired_format(candidate["object_oriented_bounding_box"]["extent"],rotation,affine)
-            # candidate["position"]=list(affine @ np.array(candidate['position'] + [1]))
-            # candidate["position"].pop()
-            # candidate["position"]=list(np.linalg.inv(candidate["object_oriented_bounding_box"]["orthogonal_offset_vectors"]).dot(candidate["position"]))
-            # candidate["object_oriented_bounding_box"]["extent"]=list(affine @ np.array(candidate["object_oriented_bounding_box"]['extent'] + [1]))
-            # candidate["object_oriented_bounding_box"]["extent"].pop()
-            # candidate["object_oriented_bounding_box"]["extent"]
-    dicto["task_1_results"]=bounding_boxes
+        box_entry["candidates"]=[]
+        for cluster in range(1,int(np.unique(image)[-1]+1)):   
+            box_entry["candidates"].append(create_score_bounding_box(image,affine,cluster))
+
+        dicto["task_1_results"].append(box_entry)
     with open(path,"w") as f:
         json.dump(dicto,f)
 
-def transform_to_desired_format(x,rotation,affine):
-    x=list(affine @ np.array(x + [1]))
-    x.pop()
-    return x
-    #return list(np.linalg.inv(rotation).dot(x))
+def create_score_bounding_box(image,affine,cluster):
+    indices = np.array(np.where(image == cluster)).T
+    indices_ext = np.concatenate((indices, np.ones((indices.shape[0], 1))), axis=1)
+    world_indices = (affine @ indices_ext.T).T[:, :3]
+    indices_vector= open3d.utility.Vector3dVector(np.array(world_indices))
+    oriented_box=open3d.geometry.OrientedBoundingBox.create_from_points(indices_vector)
+    box_dict={}
+    box_dict["position"]=oriented_box.get_center().tolist()                   
+    box_dict["object_oriented_bounding_box"]={
+                "extent":oriented_box.extent.tolist(),
+                "orthogonal_offset_vectors":(-oriented_box.R).tolist()
+                }
+    return box_dict
 
 
 

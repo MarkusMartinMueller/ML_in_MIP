@@ -6,6 +6,8 @@ import numpy as np
 import nibabel as nib
 from pathlib import Path
 import os 
+import open3d
+import json
 # postprocess_dict={ 
 #     "dbscan":True,
 #     "remove_border_candidates":True,
@@ -17,20 +19,16 @@ import os
 # }
 
 #mri_imgs= postprocessing.postprocess(env,aneurysm_labels_new,postprocess_dict)
-with open("postprocessed_imgs.pkl", "rb") as fp:   
-    mri_imgs= pickle.load(fp)
-with open("labels_test.pkl","rb") as fp:
-    labels_test= pickle.load(fp)
-with open("labels_test_invidual.pkl","rb") as fp:
-    invidual_labels_test=pickle.load(fp)
-with open("neuralnet_output.pkl","rb") as fp:
-    aneurysm_labels_new=pickle.load(fp)
+cases=["A130_R","A118","A120","A115","A133","A073","A072","A077","A064"]
+labels=[]
 
-for image in invidual_labels_test:
-    print(np.unique(image))
-bounding_boxes =postprocessing.bounding_boxes(invidual_labels_test)
-cases=["A130_R","A118","A120","A115","A133","A073","A072","A084","A077"]
-postprocessing.create_task_one_json(bounding_boxes,cases)
+for case in cases:
+    file_path=f"../../datasets/training/{case}_labeledMasks.nii.gz"
+    labels.append(nib.load(file_path).get_fdata())
+
+
+
+create_task_one_json(labels,cases)
 #evaluation.draw_bounding_box(bounding_boxes[3]["candidates"])
 
 # cases=["A130_R","A118","A120","A115","A133","A073","A072","A084","A077"]

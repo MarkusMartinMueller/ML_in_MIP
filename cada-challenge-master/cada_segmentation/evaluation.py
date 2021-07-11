@@ -12,9 +12,9 @@ from evalutils.stats import hausdorff_distance, mean_contour_distance
 from evalutils import ClassificationEvaluation
 from evalutils.io import ImageLoader
 from evalutils.validators import UniqueImagesValidator, UniquePathIndicesValidator
-
+from pathlib import Path
 from typing import Dict
-
+import os
 
 class NiftiLoader(ImageLoader):
 
@@ -39,10 +39,12 @@ class NiftiLoader(ImageLoader):
 
 
 class CadaSegmentation(ClassificationEvaluation):
-    def __init__(self):
+    def __init__(self,ground_truth_path,predictions_path):
         super().__init__(
             file_loader=NiftiLoader(),
             validators=(),
+            ground_truth_path=ground_truth_path,
+            predictions_path=predictions_path,
                 # UniquePathIndicesValidator(),
                 # UniqueImagesValidator(),
             #),
@@ -172,9 +174,9 @@ class CadaSegmentation(ClassificationEvaluation):
     def save(self):
         metrics = dict()
         metrics['aggregates'] = self._metrics['aggregates']
-        with open(self._output_file, "w") as f:
+        with open("metrics.json", "w") as f:
             f.write(json.dumps(metrics))
 
 
 if __name__ == "__main__":
-    CadaSegmentation().evaluate()
+    CadaSegmentation(ground_truth_path=Path("ground-truth"),predictions_path=Path("test-gt")).evaluate()
