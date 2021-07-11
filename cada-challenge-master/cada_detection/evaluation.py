@@ -273,7 +273,7 @@ class CadaDetection(ClassificationEvaluation):
     def save(self):
         metrics = dict()
         metrics['aggregates'] = self._metrics['aggregates']
-        with open(self._output_file, "w") as f:
+        with open("metrics.json", "w") as f:
             f.write(json.dumps(metrics))
 
 
