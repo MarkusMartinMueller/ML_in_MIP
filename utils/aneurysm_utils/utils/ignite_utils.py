@@ -14,6 +14,7 @@ def prepare_batch(
     """Prepare batch for training: pass to a device with options."""
     try:
         x, y = batch
+        
         return (
             convert_tensor(x, device=device, non_blocking=non_blocking),
             convert_tensor(y, device=device, non_blocking=non_blocking),
@@ -26,6 +27,7 @@ def prepare_batch(
         pos = convert_tensor(pos, device=device, non_blocking=non_blocking)[1]
         x = convert_tensor(x, device=device, non_blocking=non_blocking)[1]
         y = convert_tensor(y, device=device, non_blocking=non_blocking)[1]
+        
         return {"batch": batch_tensor, "pos": pos, "x": x}, y
 
 

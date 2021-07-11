@@ -9,7 +9,7 @@ from ignite.handlers import EarlyStopping, ModelCheckpoint
 from ignite.metrics import Accuracy, ConfusionMatrix, Loss, Recall, IoU, DiceCoefficient
 from torch.utils.data.dataloader import DataLoader
 from pytorch3dunet.unet3d.losses import BCEDiceLoss
-from monai.losses import DiceCELoss
+from monai.losses import DiceCELoss, DiceLoss
 from monai.transforms import AsDiscrete, Compose
 from monai.handlers import MeanDice
 from torch_geometric.data import DataLoader as DataLoaderGeometric
@@ -536,6 +536,9 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
                 criterion = DiceCELoss(softmax = False,ce_weight= 
                     torch.FloatTensor(weights).to(device)
                 )
+    elif params.criterion == "DiceLoss":
+        
+        criterion = DiceLoss()
         
 
     else:

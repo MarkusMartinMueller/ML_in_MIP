@@ -29,6 +29,7 @@ def dbscan(mri_images:List[np.array],eps=3,min_samples=30):
         for count,coords in enumerate(indices):
             empty[coords[0],coords[1],coords[2]]=labels[count]+1
         new_mri_images.append(empty)
+    del mri_images
     return new_mri_images
 
 def remove_border_candidates(mri_images:List[np.array],offset):
@@ -46,7 +47,7 @@ def remove_border_candidates(mri_images:List[np.array],offset):
         for count,element in enumerate(np.unique(image)):
             image[image==element]=count
         new_mri_images.append(image)
-        
+    del mri_images
     return new_mri_images
 
 def remove_noise(mri_images:List[np.array],size):
@@ -59,6 +60,7 @@ def remove_noise(mri_images:List[np.array],size):
             
        
         new_mri_images.append(image)
+    del mri_images
     return new_mri_images
 
 def resample(mri_images:List[np.array],dimension=(256,256,220),order:int=0,binary:bool=False):
@@ -70,6 +72,7 @@ def resample(mri_images:List[np.array],dimension=(256,256,220),order:int=0,binar
         if binary:
             new_image=np.rint(new_image)
         new_mri_images.append(new_image)
+    del mri_images
     return new_mri_images
 
 def bounding_boxes(mri_images:List[np.array],cases:List[str]=None):
@@ -96,6 +99,8 @@ def bounding_boxes(mri_images:List[np.array],cases:List[str]=None):
 
         bounding_boxes.append(boxes)
     return bounding_boxes
+
+
 
 def create_nifits(mri_images,cases,path_cada="../../cada-challenge-master/cada_segmentation/test-gt/",path_datasets='../../datasets/'):
     data_path = Path(path_datasets)
@@ -164,7 +169,7 @@ def postprocess(
             params["size"]= 90
         env.log.info("Postprocessing: Removing noise...")
         mri_imgs = remove_noise(mri_imgs,params["size"])
-  
+        
     if params.evaluate_dbscan:
         if "invidual_aneurysm_labels" not in params or "cases" not in params:
             env.log.info("Postprocessing: Can not evaluate DBSCAN because no ground truth or case list were given")
@@ -176,10 +181,8 @@ def postprocess(
         if "offset" not in params:
             params.offset=0
         env.log.info("Postprocessing: Removing border candidates...")
-        mri_imgs=remove_border_candidates(mri_imgs,params["offset"])
-        
+        mri_imgs=remove_border_candidates(mri_imgs,params["offset"])  
     if params.resample:
-        print(np.unique(mri_imgs[0]))
         if "order" not in params:
             params.order=0
         if "resample_size" not in params:
