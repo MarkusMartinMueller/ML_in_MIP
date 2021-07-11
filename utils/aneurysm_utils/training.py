@@ -9,7 +9,7 @@ from ignite.handlers import EarlyStopping, ModelCheckpoint
 from ignite.metrics import Accuracy, ConfusionMatrix, Loss, Recall, IoU, DiceCoefficient
 from torch.utils.data.dataloader import DataLoader
 from pytorch3dunet.unet3d.losses import BCEDiceLoss
-from monai.losses import DiceCELoss
+#from monai.losses import DiceCELoss
 from monai.transforms import AsDiscrete, Compose
 from monai.handlers import MeanDice
 from torch_geometric.data import DataLoader as DataLoaderGeometric
@@ -18,7 +18,7 @@ from aneurysm_utils.environment import Experiment
 from aneurysm_utils.models import get_model
 from aneurysm_utils.utils import pytorch_utils
 from aneurysm_utils import evaluation
-from aneurysm_utils.utils.ignite_utils import prepare_batch
+from aneurysm_utils.utils.ignite_utils import prepare_batch, DiceCELoss
 from aneurysm_utils.utils.point_cloud_utils import extend_point_cloud
 import time
 import psutil
@@ -486,6 +486,8 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
     exp.log.info("Validation dataset loaded. Length: " + str(len(val_loader.dataset)))
 
     device = torch.device("cuda" if params.use_cuda else "cpu")
+    if params.device:
+        device = params.device
 
     if params.criterion == "CrossEntropyLoss":
         if params.criterion_weights:
@@ -529,12 +531,16 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
         if params.criterion_weights:
             weights = params.criterion_weights
             if isinstance(weights, int) or isinstance(weights, float):
-                criterion = DiceCELoss(softmax = True,ce_weight= 
-                    torch.FloatTensor([1.0, weights]).to(device)
+                criterion = DiceCELoss(
+                    softmax=True, 
+                    ce_weight=torch.FloatTensor([1.0, weights]).to(device),
+                    to_onehot_y=True,
                 )
             else:
-                criterion = DiceCELoss(softmax = True,ce_weight= 
-                    torch.FloatTensor(weights).to(device)
+                criterion = DiceCELoss(
+                    softmax=True, 
+                    ce_weight=torch.FloatTensor(weights).to(device),
+                    to_onehot_y=True
                 )
         
 
@@ -543,7 +549,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
 
     if params.use_cuda:
         # TODO: required?
-        criterion = criterion.cuda()
+        criterion = criterion.to(device)
 
     if params.pretrain_path:
         model_params = [
@@ -625,7 +631,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
         pass
     elif params.scheduler == "ReduceLROnPlateau":
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer=optimizer, mode="min", factor=0.5, patience=10
+            optimizer=optimizer, mode="min", factor=0.5, patience=2
         )
 
         @evaluator.on(Events.COMPLETED)
@@ -749,7 +755,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
     if mri_imgs_test is not None:
         with exp.comet_exp.test():
             pred_classes, pred_scores = zip(
-                *pytorch_utils.predict(model, test_loader, cuda=params.use_cuda)
+                *pytorch_utils.predict(model, test_loader, cuda=params.use_cuda, device=device)
             )
             print('RAM memory % used:', psutil.virtual_memory()[2])
             if params.model_name == "SegNet":
