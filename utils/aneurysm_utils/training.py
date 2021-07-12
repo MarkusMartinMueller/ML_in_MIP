@@ -479,7 +479,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
             num_workers=params.num_threads if params.num_threads else 0,
             pin_memory=params.use_cuda,
         )
-
+        del mri_imgs_test,mri_imgs_train,mri_imgs_val,labels_test,labels_val,labels_train
     # train_dataset.print_image()
     
     exp.log.info("Train dataset loaded. Length: " + str(len(train_loader.dataset)))

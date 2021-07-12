@@ -179,7 +179,7 @@ class PyTorchGeometricDataset(InMemoryDataset):
         mri_images,
         labels,
         split="train",
-        force_processing=True,
+        force_processing=False,
         transform=None,
         pre_transform=None,
     ):
@@ -218,7 +218,7 @@ class PyTorchGeometricDataset(InMemoryDataset):
         torch.save(
             self.collate(dataset), os.path.join(self.processed_dir, f"{self.split}.pt")
         )
-
+        del self.mri_images,self.labels
 
 # -------------------------- Samplers ---------------------------------
 

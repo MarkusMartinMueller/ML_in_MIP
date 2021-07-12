@@ -226,7 +226,7 @@ def plot_slices(
                     interpolation=None,
                 )
 
-def draw_mask_3d(image:np.array,ax=None,zorder=0,markersize=0.8,alpha=1,limits=(0,0,0)):
+def draw_mask_3d(image:np.array,ax=None,zorder=0,markersize=0.8,alpha=1,limits=(0,0,0),c=None):
     fig = plt.figure()
     if ax==None:
         ax = Axes3D(fig)
@@ -237,7 +237,10 @@ def draw_mask_3d(image:np.array,ax=None,zorder=0,markersize=0.8,alpha=1,limits=(
     else:
         ax=ax
     for cluster in range(1,int(np.unique(image)[-1]+1)):
-        ax.scatter(np.argwhere(image==cluster).T[0],np.argwhere(image==cluster).T[1],np.argwhere(image==cluster).T[2],s=markersize,alpha=alpha,zorder=zorder)
+        if c==None:
+            ax.scatter(np.argwhere(image==cluster).T[0],np.argwhere(image==cluster).T[1],np.argwhere(image==cluster).T[2],s=markersize,alpha=alpha,zorder=zorder)
+        else:
+            ax.scatter(np.argwhere(image==cluster).T[0],np.argwhere(image==cluster).T[1],np.argwhere(image==cluster).T[2],s=3,alpha=alpha,zorder=zorder,c="black")
 
 def draw_image(image:np.array,ax=None,zorder=0,markersize=0.8,transparency:bool=True,limits=(0,0,0)):
     fig = plt.figure()
