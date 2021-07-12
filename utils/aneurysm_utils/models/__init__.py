@@ -348,8 +348,8 @@ def get_model(params: Dict):
             model = model.to(params.device)
         else:
             model = model.cuda()
-            model = nn.DataParallel(model, device_ids=None)
-            net_dict = model.state_dict()
+            #model = nn.DataParallel(model, device_ids=None)
+            #net_dict = model.state_dict()
     else:
         net_dict = model.state_dict()
 
