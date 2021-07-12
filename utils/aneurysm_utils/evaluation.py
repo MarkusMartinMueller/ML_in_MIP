@@ -1,4 +1,3 @@
-
 import os
 import json
 import multiprocessing
@@ -12,7 +11,6 @@ import pandas as pd
 import matplotlib.animation
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
-
 
 from typing import List
 import torch
@@ -34,7 +32,7 @@ from aneurysm_utils.environment import Environment
 from collections import defaultdict
 from sklearn import metrics as sk_metrics
 from sklearn.preprocessing import MinMaxScaler
-import open3d
+#import open3d
 
 def evaluate_model(
     y_true: list, y_pred: list, segmentation: bool = None, prefix: str = None
@@ -808,7 +806,7 @@ def compare_two_list(list_a,list_b):
 
 #---------------------------------Scores------------------------------------------------
 
-
+"""
 def coverage(boxobjects:List,labeled_aneurysm_mask:np.array):
     total_score=0
     for box_dict in boxobjects:
@@ -816,6 +814,7 @@ def coverage(boxobjects:List,labeled_aneurysm_mask:np.array):
             for label in range(1,int(np.unique(labeled_aneurysm_mask)[-1])+1):
                 aneurysm = np.array(np.where(labeled_aneurysm_mask==label)).T
                 print(len(aneurysm))
+            
                 print(len(box_dict["box_object"].get_point_indices_within_bounding_box(open3d.utility.Vector3dVector(aneurysm))))
                 score=len(box_dict["box_object"].get_point_indices_within_bounding_box(open3d.utility.Vector3dVector(aneurysm)))/len(aneurysm)
                 if score>scorebefore:
@@ -823,6 +822,7 @@ def coverage(boxobjects:List,labeled_aneurysm_mask:np.array):
             total_score+=scorebefore    
     
     return total_score/(len(np.unique(labeled_aneurysm_mask))-1)
+"""
 
 def bboxfit(boxobjects:List,labeled_aneurysm_mask:np.array):
     total_score=0
@@ -966,4 +966,3 @@ def calc_total_segmentation_score(scores_dict):
 
     total_score+=1/scores_dict["VolumeBias"]["stdev"]
     return total_score/6
-

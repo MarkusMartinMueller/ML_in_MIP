@@ -17,7 +17,7 @@ import aneurysm_utils
 
 DF_DICT = {"mask": "Path Mask", "vessel": "Path Vessel", "rupture risk": "Rupture Status", "labeled":"Path Labeled Mask"}
 
-def load_nifti(file_path, mask=None, z_factor=None, remove_nan=True, resample_dim=(1.5, 1.5, 1.5),resample_size=None,order=0):
+def load_nifti(file_path, mask=None, z_factor=None, remove_nan=True, resample_dim=(1.5, 1.5, 1.5),resample_size=None, order=0):
     """Load a 3D array from a NIFTI file."""
     nifti = nib.load(file_path)
     struct_arr = nifti.get_data().astype("<f4")
@@ -294,9 +294,9 @@ def split_mri_images(
         )
 
     return (
-        load_mri_images(env, df_train, prediction, resample_voxel_dim=resample_voxel_dim,resample_size=resample_size,order=order)[:2],
-        load_mri_images(env, df_test, prediction, resample_voxel_dim=resample_voxel_dim,resample_size=resample_size,order=order)[:2],
-        load_mri_images(env, df_validation, prediction, resample_voxel_dim=resample_voxel_dim,resample_size=resample_size,order=order)[:2],
+        load_mri_images(env, df_train, prediction, resample_voxel_dim=resample_voxel_dim,resample_size=resample_size,order=order),
+        load_mri_images(env, df_test, prediction, resample_voxel_dim=resample_voxel_dim,resample_size=resample_size,order=order),
+        load_mri_images(env, df_validation, prediction, resample_voxel_dim=resample_voxel_dim,resample_size=resample_size,order=order),
         label_encoder
     )
 

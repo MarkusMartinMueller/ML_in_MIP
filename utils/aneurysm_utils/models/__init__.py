@@ -311,7 +311,7 @@ def get_model(params: Dict):
             filters = [64,128,256],
             )
     elif params.model_name == "Unet3D_Oktay":
-        model = unet_3d_oktay.unet_3D(feature_scale=1, n_classes=2, is_deconv=True, in_channels=1, is_batchnorm=True)
+        model = unet_3d_oktay.unet_3D(feature_scale=params.feature_scale, n_classes=2, is_deconv=True, in_channels=1, is_batchnorm=True)
     
     
     elif params.model_name == "Attention_Unet":
@@ -344,9 +344,12 @@ def get_model(params: Dict):
     print("Selected model: " + model.__class__.__name__)
 
     if params.use_cuda:
-        model = model.cuda()
-        model = nn.DataParallel(model, device_ids=None)
-        net_dict = model.state_dict()
+        if params.device:
+            model = model.to(params.device)
+        else:
+            model = model.cuda()
+            model = nn.DataParallel(model, device_ids=None)
+            net_dict = model.state_dict()
     else:
         net_dict = model.state_dict()
 
