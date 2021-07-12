@@ -117,7 +117,7 @@ def create_task_one_json(images,cases,processing_times=None,path="reference.json
         "CPU": "Intel Core i9 9900K 8x 3.60GHz",
         "GPU": "NVIDIA RTX 2080 Ti",
         "#GPUs": 1,
-        "RAM_in_GB": 4,
+        "RAM_in_GB": 10,
         "additional_remarks": "special hardware requirements, other comments"
     }
     }
