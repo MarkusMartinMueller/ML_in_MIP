@@ -5,6 +5,11 @@ pointnet2_classification.py
 *.png
 *.pth
 *.pt
+*.npy
+*.pkl
+*.nii.gz
+**/*.nii.gz
+**/*.pkl
 .devcontainer/
 data/ModelNet10
 data/ShapeNet
@@ -203,14 +208,18 @@ cython_debug/
 datasets/*
 experiments/*
 
+<<<<<<< HEAD
 
 
 **/*.npy
 
+**/*.pkl
+*.pkl
 
 
 
 *.npy
+
 
 
 

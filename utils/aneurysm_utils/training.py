@@ -432,7 +432,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
         )
         test_loader = DataLoader(
             test_dataset,
-            batch_size=1,  # TODO: use fixed batch size of 5
+            batch_size= 1,#params.batch_size,  # TODO: use fixed batch size of 5
             shuffle=False,
             num_workers=params.num_threads if params.num_threads else 0,
             pin_memory=params.use_cuda,
@@ -542,6 +542,9 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
                     ce_weight=torch.FloatTensor(weights).to(device),
                     to_onehot_y=True
                 )
+    elif params.criterion == "DiceLoss":
+        
+        criterion = DiceLoss()
         
 
     else:
@@ -687,6 +690,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
                     "spec": spec,
                     "sen": sen,
                     "avg_loss": avg_nll,
+                    "lr": optimizer.param_groups[0]["lr"]
                 },
                 epoch=engine.state.epoch,
             )
@@ -763,6 +767,7 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
                 pred_classes, pred_scores = extend_point_cloud(
                     pred_classes, pred_scores, test_dataset, labels_test
                 )
+            
             exp.comet_exp.log_metrics(
                 evaluation.evaluate_model(
                     labels_test,

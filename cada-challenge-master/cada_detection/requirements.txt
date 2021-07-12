@@ -1,0 +1,9 @@
+
+evalutils==0.2.3
+
+scikit-learn
+scipy==1.2.1
+nibabel
+nilearn
+pyvista
+vtk

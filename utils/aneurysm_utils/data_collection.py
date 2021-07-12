@@ -17,7 +17,7 @@ import aneurysm_utils
 
 DF_DICT = {"mask": "Path Mask", "vessel": "Path Vessel", "rupture risk": "Rupture Status", "labeled":"Path Labeled Mask"}
 
-def load_nifti(file_path, mask=None, z_factor=None, remove_nan=True, resample_dim=(1.5, 1.5, 1.5),resample_size=None, order=2):
+def load_nifti(file_path, mask=None, z_factor=None, remove_nan=True, resample_dim=(1.5, 1.5, 1.5),resample_size=None, order=0):
     """Load a 3D array from a NIFTI file."""
     nifti = nib.load(file_path)
     struct_arr = nifti.get_data().astype("<f4")
@@ -115,7 +115,7 @@ def load_mri_images(
     case_list: List[str] = None,
     resample_voxel_dim: tuple = (1.5, 1.5, 1.5),
     resample_size: tuple=None,
-    order:int = 2
+    order:int = 0
 ):
     """
     Load MRI images for a given dataframe.
@@ -221,7 +221,7 @@ def split_mri_images(
     print_stats: bool = True,
     resample_voxel_dim: tuple = (1.5, 1.5, 1.5),
     resample_size: tuple=None,
-    order:int = 2
+    order:int = 0
 ) -> Union[tuple, tuple, tuple, preprocessing.LabelEncoder]:
     """
     Load mri images for provided dataset and split into train, test, and validate.
