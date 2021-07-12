@@ -338,9 +338,12 @@ def get_model(params: Dict):
     print("Selected model: " + model.__class__.__name__)
 
     if params.use_cuda:
-        model = model.cuda()
-        model = nn.DataParallel(model, device_ids=None)
-        net_dict = model.state_dict()
+        if params.device:
+            model = model.to(params.device)
+        else:
+            model = model.cuda()
+            model = nn.DataParallel(model, device_ids=None)
+            net_dict = model.state_dict()
     else:
         net_dict = model.state_dict()
 
