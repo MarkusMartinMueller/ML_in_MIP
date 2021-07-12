@@ -294,7 +294,6 @@ class UnetUp3(nn.Module):
         return self.conv(torch.cat([outputs1, outputs2], 1))
 
 class unet_grid_attention_3D(nn.Module):
-
     def __init__(self, feature_scale=4, n_classes=2, is_deconv=True, in_channels=1,
                  nonlocal_mode='concatenation', attention_dsample=(2,2,2), is_batchnorm=True):
         super(unet_grid_attention_3D, self).__init__()

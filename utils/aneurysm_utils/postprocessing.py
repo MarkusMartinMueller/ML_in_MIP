@@ -50,15 +50,15 @@ def remove_border_candidates(mri_images:List[np.array],offset):
     del mri_images
     return new_mri_images
 
-def remove_noise(mri_images:List[np.array],size):
+def remove_noise(mri_images:List[np.array],size_smallest,size_biggest):
     new_mri_images=[]
     for image in mri_images:
         for cluster in range(1,int(np.unique(image)[-1])+1):
-            volumen= len(np.array(np.where(image==cluster)).T)
-            if volumen<size:
+            volumen= np.array(np.where(image==cluster)).T.shape[0]
+            if volumen<size_smallest:
                 image=np.where(image==cluster,0,image)
-            
-       
+            if volumen>size_biggest:
+                image=np.where(image==cluster,0,image)
         new_mri_images.append(image)
     del mri_images
     return new_mri_images
@@ -117,7 +117,7 @@ def create_task_one_json(images,cases,processing_times=None,path="reference.json
         "CPU": "Intel Core i9 9900K 8x 3.60GHz",
         "GPU": "NVIDIA RTX 2080 Ti",
         "#GPUs": 1,
-        "RAM_in_GB": 4,
+        "RAM_in_GB": 10,
         "additional_remarks": "special hardware requirements, other comments"
     }
     }
@@ -169,7 +169,7 @@ def postprocess(
         if "size" not in params:
             params["size"]= 90
         env.log.info("Postprocessing: Removing noise...")
-        mri_imgs = remove_noise(mri_imgs,params["size"])
+        mri_imgs = remove_noise(mri_imgs,params["size_smallest"],params["size_biggest"])
         
     if params.evaluate_dbscan:
         if "invidual_aneurysm_labels" not in params or "cases" not in params:
