@@ -10,9 +10,10 @@ from aneurysm_utils.utils.point_cloud_utils import segmented_image_to_graph
 from aneurysm_utils.utils.ignite_utils import prepare_batch
 
 
-def predict(model, loader, cuda=False, apply_softmax=True):
+def predict(model, loader, cuda=False, apply_softmax=True, device=None):
     predictions = []
-    device = "cuda" if cuda else "cpu"
+    if device is None:
+        device = "cuda" if cuda else "cpu"
     for batch in loader:
         X, y = prepare_batch(batch, device=device)
         output = model(X)
@@ -81,7 +82,7 @@ class PytorchDataset(Dataset):
         if self.segmentation:
             self.labels = np.copy(labels)
         else:
-            pass
+            self.labels = labels
         self.labels = torch.LongTensor(self.labels)
 
         self.transform = transform

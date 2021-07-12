@@ -647,7 +647,8 @@ def train_pytorch_model(exp: Experiment, params, artifacts):
 
     def score_function(engine):
         accuracy = evaluator.state.metrics["loss"]
-        return accuracy
+        print(accuracy)
+        return -accuracy
 
     if params.es_patience:
         # Only activate early stopping if patience is provided
