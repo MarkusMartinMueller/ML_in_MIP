@@ -76,6 +76,7 @@ def get_case_images(
     mri_data_selection: str = "unprocessed",
     mesh: bool = False,
     resample_voxel_dim: tuple = None,
+    only_ori = False,
     ):
 
     files = {
@@ -86,6 +87,8 @@ def get_case_images(
         "Vessel Mesh": "_vessel.stl", 
         "Aneurysm Mesh": ".stl",
             }
+    if only_ori:
+        files = {"Orig": "_orig.nii.gz"}
     img_dict = {}
     img_dict["case"]=case
     for name, file in files.items():
