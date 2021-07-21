@@ -17,8 +17,22 @@ import aneurysm_utils
 
 DF_DICT = {"mask": "Path Mask", "vessel": "Path Vessel", "rupture risk": "Rupture Status", "labeled":"Path Labeled Mask"}
 
-def load_nifti(file_path, mask=None, z_factor=None, remove_nan=True, resample_dim=(1.5, 1.5, 1.5),resample_size=None, order=0):
-    """Load a 3D array from a NIFTI file."""
+def load_nifti(file_path:str, mask:np.array=None, z_factor:float=None, remove_nan:bool=True, resample_dim:tuple=(1.5, 1.5, 1.5)):
+    """
+    Load a 3D array from a NIFTI file.
+    
+    Paramters
+    ---------
+    file_path: where to get the nifti from
+    mask: use mask on array
+    z_factor: zoom image with this factor
+    remove_nan: removes nan if true
+    resample_dim: resamples array with this voxel size
+    
+    Returns
+    -------
+    3d image as numpy array
+    """
     nifti = nib.load(file_path)
     struct_arr = nifti.get_data().astype("<f4")
     #print(struct_arr.shape)
@@ -31,17 +45,6 @@ def load_nifti(file_path, mask=None, z_factor=None, remove_nan=True, resample_di
         spacing = Spacing(pixdim=resample_dim)
         struct_arr = spacing(struct_arr, nifti.affine)[0]
         struct_arr = np.squeeze(struct_arr, axis=0)
-    elif resample_size is not None:
-        shape=struct_arr.shape
-        zoom_factors= [resample_size[0]/shape[0],resample_size[1]/shape[1],resample_size[2]/shape[2]]
-        struct_arr=zoom(struct_arr,zoom_factors,order=order)
-    #print(struct_arr.shape)
-
-
-    # struct_arr = np.array(nib.load(file_path).get_data().astype("<f4"))  # TODO:
-    # nilearn.image.smooth_img(row["path"], fwhm=3).get_data().astype("<f4")
-    # struct_arr = nib.load(file_path).get_data().astype("<f4")
-    # np.array(nib.load(file_path).get_data().astype("<f4"))
     if remove_nan:
         struct_arr = np.nan_to_num(struct_arr)
     if mask is not None:
@@ -53,8 +56,14 @@ def load_nifti(file_path, mask=None, z_factor=None, remove_nan=True, resample_di
 
 
 
-def save_nifti(file_path, struct_arr):
-    """Save a 3D array to a NIFTI file."""
+def save_nifti(file_path:str, struct_arr:np.array):
+    """
+    Save a 3D array to a NIFTI file.
+    Paramters
+    ---------
+    file_path: where to get the nifti from
+    struct_arr: image to save
+    """
     img = nib.Nifti1Image(struct_arr, np.eye(4))
     nib.save(img, file_path)
 
@@ -62,6 +71,17 @@ def get_orig_images(
     env: aneurysm_utils.Environment,
     df: pd.DataFrame
 ):
+    """
+    Load list of original niftis images 
+    Parameters
+    ----------
+    env: environment used
+    df: dataframe with pathes to original images
+    
+    Returns
+    -------
+    list of niftis
+    """
     mri_imgs = []
     for idx, row in tqdm.tqdm(df.iterrows(), total=len(df)):
         nifti_orig = nib.load(row["Path Orig"])
@@ -70,6 +90,7 @@ def get_orig_images(
 
 
 def get_case_images(
+    
     env: aneurysm_utils.Environment,
     df: pd.DataFrame,
     case: str,
@@ -78,7 +99,22 @@ def get_case_images(
     resample_voxel_dim: tuple = None,
     only_ori = False,
     ):
-
+    """
+    Load list of original niftis images for given case
+    Parameters
+    ----------
+    env: environment used
+    df: dataframe with pathes to original images
+    case: case to load
+    mri_data_selection: chooses file path
+    mesh: bool = ??
+    resample_voxel_dim: if given resamples images
+    only_ori = if true only saves originals
+    Returns
+    -------
+    list of image dictionaries with files
+ 
+    """
     files = {
         "Orig": "_orig.nii.gz", 
         "Vessel": "_vessel.nii.gz", 
@@ -117,8 +153,6 @@ def load_mri_images(
     mask: str = None,
     case_list: List[str] = None,
     resample_voxel_dim: tuple = (1.5, 1.5, 1.5),
-    resample_size: tuple=None,
-    order:int = 0
 ):
     """
     Load MRI images for a given dataframe.
@@ -127,6 +161,9 @@ def load_mri_images(
         env: Environment for data organization.
         df_ppmi: PPMI + MRI dataframe.
         prediction: Selected column to be used as label. Possible values: `mask`, `vessel`, `rupture risk`.
+        mask: use mask on array
+        case_list: if given only loads these cases
+        resample_voxel_dim: resamples array with this voxel size
 
     Returns:
         mri_imgs (ndarray): List of loaded MRI images.
@@ -143,10 +180,10 @@ def load_mri_images(
 
     for idx, row in tqdm.tqdm(df.iterrows(), total=len(df)):
         # nifti_orig = nib.load(row["Path Orig"])
-        nifti_orig = load_nifti(row["Path Orig"], resample_dim=resample_voxel_dim,resample_size=resample_size,order=order)
+        nifti_orig = load_nifti(row["Path Orig"], resample_dim=resample_voxel_dim)
         if prediction in ["mask", "vessel","labeled"]:
             # nifti_mask = nib.load(row[DF_DICT[prediction]])
-            nifti_mask = load_nifti(row[DF_DICT[prediction]], resample_dim=resample_voxel_dim,resample_size=resample_size,order=order)
+            nifti_mask = load_nifti(row[DF_DICT[prediction]], resample_dim=resample_voxel_dim)
             labels.append(np.rint(nifti_mask))
             #values, count = np.unique(np.rint(nifti_mask), return_counts=True)
             #print(count, (count[1]/count[0]))
@@ -223,8 +260,6 @@ def split_mri_images(
     random_state: int = 0,
     print_stats: bool = True,
     resample_voxel_dim: tuple = (1.5, 1.5, 1.5),
-    resample_size: tuple=None,
-    order:int = 0
 ) -> Union[tuple, tuple, tuple, preprocessing.LabelEncoder]:
     """
     Load mri images for provided dataset and split into train, test, and validate.
@@ -239,6 +274,7 @@ def split_mri_images(
         balance_data: If `True`, data will be balanced based on the selected label.
         random_state: Random state for all sampeling methods.
         print_stats: If `True`, statistics about the dataset split are printed.
+        resample_voxel_dim: resamples array with this voxel size
 
     Returns:
         train_data (tuple): Tuple of MRI images and labels for training.
@@ -297,16 +333,28 @@ def split_mri_images(
         )
 
     return (
-        load_mri_images(env, df_train, prediction, resample_voxel_dim=resample_voxel_dim,resample_size=resample_size,order=order),
-        load_mri_images(env, df_test, prediction, resample_voxel_dim=resample_voxel_dim,resample_size=resample_size,order=order),
-        load_mri_images(env, df_validation, prediction, resample_voxel_dim=resample_voxel_dim,resample_size=resample_size,order=order),
+        load_mri_images(env, df_train, prediction, resample_voxel_dim=resample_voxel_dim),
+        load_mri_images(env, df_test, prediction, resample_voxel_dim=resample_voxel_dim),
+        load_mri_images(env, df_validation, prediction, resample_voxel_dim=resample_voxel_dim),
         label_encoder
     )
 
 
 # Helpers
 
-def get_img_stats(struct_arr, image_name):
+def get_img_stats(struct_arr:np.array, image_name:str):
+    """
+    Gets stats of image and names it
+    
+    Paramters
+    ---------
+    struct_arr: image to get stats from
+    image_name: how to name the image
+    
+    Returns
+    -------
+    dictionary with image stats
+    """
     metrics = {}
     metrics["min_float"] = struct_arr.min()
     metrics["max_float"] = struct_arr.max()
@@ -319,8 +367,18 @@ def get_img_stats(struct_arr, image_name):
     return metrics
 
 
-def print_img_stats(env, df, case_list=None, mri_imgs=None):
-    """Prints statistics about the image inlcuding vessel and aneurysm"""
+def print_img_stats(env :aneurysm_utils.Environment,
+    df: pd.DataFrame, case_list:List[str]=None, mri_imgs:List[np.array]=None):
+    """
+    Prints statistics about the image inlcuding vessel and aneurysm
+    
+    Parameters
+    ----------
+    env: Environment for data organization.
+    df: dataframe with images information
+    case_list: if given only loads these cases
+    mri_imgs: if given saves image stats
+    """
     img_metrics = []
     if case_list:
         df = df.loc[df["Case"].isin(case_list)]
@@ -356,8 +414,10 @@ def print_img_stats(env, df, case_list=None, mri_imgs=None):
 
 
 
-def print_df_stats(df, df_train, df_val, df_test, label_encoder, prediction):
-    """Print some statistics of the splitted dataset."""
+def print_df_stats(df: pd.DataFrame, df_train: pd.DataFrame, df_val: pd.DataFrame, df_test: pd.DataFrame, label_encoder, prediction):
+    """
+    Print some statistics of the splitted dataset.
+    """
     try:
         labels = list(label_encoder.classes_)
     except AttributeError:
@@ -367,6 +427,7 @@ def print_df_stats(df, df_train, df_val, df_test, label_encoder, prediction):
         headers.append("-> " + str(label))
 
     def get_stats(df):
+
         lenghts = [len(df)]
         for label in range(len(labels)):
             df_label = df[df[DF_DICT[prediction]] == label]

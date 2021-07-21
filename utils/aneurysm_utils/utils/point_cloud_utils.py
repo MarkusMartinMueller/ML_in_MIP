@@ -25,12 +25,24 @@ def segmented_image_to_graph(image: np.array, image_mask: np.array):
     return Data(x=intensity_values, pos=coordinates, y=labels)
 
 
-def graph_to_image(graph: Data, shape: tuple = (256, 256, 220), attribute: str = "pred"):
+def graph_to_image(graph: Data, shape: tuple = (256, 256, 220)):
+    """
+    Converts image back to graph
+    
+    Parameters
+    ----------
+    graph: pytorch geometric graph 
+    shape: shape of original image
+    
+    Returns
+    -------
+    image as numpy array
+    """
     image = np.zeros(shape)
     # if pos normalizied
     #graph.pos[:, :2] = graph.pos[:, :2] * shape[0]
     #graph.pos[:, 2:] = graph.pos[:, 2:] * shape[2]
-    for value, coords in zip(graph[attribute], graph.pos):
+    for value, coords in zip(graph.x, graph.pos):
         coords = [round(num) for num in coords.tolist()]
 
         image[coords[0], coords[1], coords[2]] = value.item()
@@ -38,6 +50,9 @@ def graph_to_image(graph: Data, shape: tuple = (256, 256, 220), attribute: str =
 
 
 def extend_point_cloud(pred_classes, pred_scores, dataset, labels_test):
+    """
+    
+    """
     pred_classes_rescaled = []
     prob_scores_rescaled = []
     for data, pred, prob, target in zip(dataset, pred_classes, pred_scores, labels_test):

@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List,Tuple
 
 import tqdm
 import nilearn
@@ -32,137 +32,33 @@ def intensity_segmentation(mri_imgs: List[np.memmap], threshold: float) -> np.ar
 
     """
     mri_imgs = [np.where(image > threshold, image, 0) for image in mri_imgs]
-    #mri_imgs = [np.where(image < threshold, image, 1) for image in mri_imgs]
+
     return mri_imgs
-    """
-    segmented = []
-    for image in mri_imgs:
-        mask = copy.copy(image)
-        mask[mask > threshold] = 1
-        mask[mask < threshold] = 0
-        segmented.append(mask)
-    return segmented
-    """
 
 
-def resize_mri(img, size, interpolation=0):
-    """Resize img to size. Interpolation between 0 (no interpolation) and 5 (maximum interpolation)."""
+
+def resize_mri(img:np.array, size:Tuple, interpolation:int=0):
+    """
+    Resize img to size. 
+    
+    Parameters
+    ----------
+    size: desired size
+    interpolation: Interpolation between 0 (no interpolation) and 5 (maximum interpolation).
+    
+    
+    Returns
+    ------
+    The resized image
+    """
     zoom_factors = np.asarray(size) / np.asarray(img.shape)
     # img_arr = img_arr.resize((256,256,128))
     return sp.ndimage.zoom(img, zoom_factors, order=interpolation)
 
-def patch_creater(image, patch_size):
+
+def get_nift_like(env: aneurysm_utils.Environment, mri_imgs:List[np.array]):
     """
-    Creates overlapping patches from  preprocessed image, the number of patches is fixed to certain value
-    and the size can be changed as well
-    ----------
-    image: numpy.array
-        image which will be sliced into patches
-    patch_size: tuple of int
-        size of the patch, equal in each direction
-   
-    Returns
-    -------
-    numpy.array  (n_patches,channels,patch_size,patch_size,patch_size)
-        list containing the patches
-
-    """
-    
-    
-
-
-    dim = np.array(image.shape)# size of the image
-    n_patches = np.ceil(dim/patch_size).astype(int) # calculates the number of patches for each dim, to cover all voxel at least once
-    rest  = n_patches * patch_size%dim ## calculates the remaining voxel which are going to overlap 
-
-    patches = []
-    for i in range(n_patches[0]):
-        
-        if i == n_patches[0]-1: ## only the last cube is an overlapped cube
-            start_x = i*patch_size-rest[0]## indices were to start and stop the slicing true the image array
-            stop_x= (i+1)* patch_size-rest[0]
-              
-        else:    
-            start_x = i*patch_size
-            stop_x = (i+1)* patch_size
-
-        
-              
-        for j in range(n_patches[1]):
-            if j == n_patches[1]-1: ## only the last cube is an overlapped cube
-                start_y = j*patch_size-rest[1]
-                stop_y= (j+1)* patch_size-rest[1]
-              
-            else:    
-                start_y = j*patch_size
-                stop_y = (j+1)* patch_size
-            
-            for k in range(n_patches[2]):
-                if k == n_patches[2]-1: 
-                    start_z = k*patch_size-rest[2]
-                    stop_z = (k+1)* patch_size-rest[2]
-              
-                else:    
-                    start_z = k*patch_size
-                    stop_z = (k+1)* patch_size
-
-              
-                patches.append(image[start_x:stop_x,start_y:stop_y,start_z:stop_z])
-        
-        
-    #return np.array([*patches])
-    return patches
-
-
-def patch_list(data_list,patch_size):
-    list_patch = []
-    print(len(data_list))
-    for n in range(len(data_list)):
-        patch = patch_creater(data_list[n],patch_size)
-        print(len(patch),np.array(patch).shape)
-        list_patch = list_patch+patch
-    
-
-    return list_patch
-
-def get_mri_template(env: aneurysm_utils.Environment, shape):
-    # TODO: check shape and modality?
-
-    cache_key = "mri_template_img"
-    if cache_key in env.cached_data:
-        return env.cached_data[cache_key]
-    else:
-        if "mri_template_path" in env.cached_data:
-            if not os.path.exists(env.cached_data["mri_template_path"]):
-                print("Template path does not exist.")
-                return None
-            # Lazy load
-            env.cached_data[cache_key] = load_img(
-                env.cached_data["mri_template_path"], wildcards=True, dtype=None
-            )
-            return env.cached_data[cache_key]
-        else:
-            print("No valid mri template was found.")
-            return None
-
-
-def get_mri_mask(env: aneurysm_utils.Environment):
-    # TODO: Adjust and understand
-    cache_key = "mri_mask"
-    if cache_key in env.cached_data:
-        return env.cached_data[cache_key]
-    else:
-        # Lazy load the template
-        mri_masks_path = aneurysm_utils.data_collection.get_mri_masks_file(env)
-        mri_mask_path = os.path.join(mri_masks_path, "mask_T1.nii")
-        return None
-
-        env.cached_data[cache_key] = load_img(mri_mask_path).get_fdata()
-        return env.cached_data[cache_key]
-
-
-def get_nift_like(env: aneurysm_utils.Environment, mri_imgs):
-    """Function tranforms list of numpy arrays into Niimg-like object"""
+    Function tranforms list of numpy arrays into Niimg-like object"""
     template = get_mri_template(env, shape=mri_imgs[0].shape)
 
     if template is None:
@@ -190,8 +86,21 @@ def smooth_imgs(env: aneurysm_utils.Environment, mr_imgs: list, fwhm=1) -> list:
     return smoothed
 
 
-def get_reshaped_img(mri_imgs, new_shape=(256, 256, 256), plot=False):
-    """Reshape the images into a new shape by default = (256, 256, 256, 1). Only input imgs with a smaller shape"""
+def get_reshaped_img(mri_imgs:List[np.array], new_shape:Tuple=(256, 256, 256), plot:bool=False):
+    """
+    Reshape the images into a new shape by default = (256, 256, 256, 1). Only input imgs with a smaller shape
+    
+    Paramters
+    ---------
+    mri_imgs: list of 3d images
+    new_shape: reshape image to that shape
+    plot: if true plots the new images
+    
+    Returns
+    -------
+    list of reshaped images
+    
+    """
     new_mri_imgs = []
     for img in mri_imgs:
         # fill image with zeros
@@ -204,47 +113,17 @@ def get_reshaped_img(mri_imgs, new_shape=(256, 256, 256), plot=False):
     return new_mri_imgs
 
 
-def get_roi_volume(env, mri_imgs, atlas=None):
-    """Calculates the Volume of each ROI using the pauli 2017 template"""
-    if atlas is None:
-        atlas = "pauli_2017"
 
-    if type(atlas) == str:
-        atlas = [atlas]
-
-    assert all(item in ["pauli_2017", "HOCPA_th25"] for item in atlas)
-
-    if "pauli_2017" in atlas:
-        pauli_atlas = nilearn.datasets.fetch_atlas_pauli_2017()
-        s_struct_arr = nib.load(pauli_atlas["maps"]).get_data()
-        s_labels = len(pauli_atlas["labels"])
-    if "HOCPA_th25" in atlas:
-        c_struct_arr = nib.load(
-            env.get_file(
-                "https://templateflow.s3.amazonaws.com/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-01_atlas-HOCPA_desc-th25_dseg.nii.gz"
-            )
-        ).get_data()
-        c_labels = np.max(c_struct_arr)
-
-    feature_list = []
-    for mri_img in tqdm.tqdm(mri_imgs):
-        features = []
-
-        if "pauli_2017" in atlas:
-            for label in range(s_labels):
-                region = s_struct_arr[:, :, :, label] * mri_img
-                volume = np.mean(region[np.nonzero(region)])
-                features.append(volume)
-        if "HOCPA_th25" in atlas:
-            for label in range(c_labels):
-                volume = np.mean(mri_img[np.where(c_struct_arr == (label + 1))])
-                features.append(volume)
-        feature_list.append(features)
-    return feature_list
-
-
-def print_img(mri_img, idx=None):
-    """Print single mri image at three axes"""
+def print_img(mri_img:np.array, idx:Tuple=None):
+    """
+    Print single mri image at three axe
+    
+    Parameters
+    ----------
+    mri_imgs: image to print
+    idx: tuple where the entries define where to slice the image in order z,y,x
+    
+    """
     if idx == None:
         idx = (
             int(mri_img.shape[0] / 2),
@@ -260,19 +139,19 @@ def print_img(mri_img, idx=None):
     plt.show()
 
 
-def resample_to_mni152(env: aneurysm_utils.Environment, nii_imgs: list) -> list:
-    """Function to resample 3D nii images in a list to (91, 109, 91)"""
-
-    template = nilearn.datasets.load_mni152_template()
-    resampled = []
-    for img in nii_imgs:
-        img_resamp = resample_to_img(img, template)
-        resampled.append(img_resamp.get_fdata())
-    return resampled
-
 
 def min_max_normalize(mri_imgs: List[np.memmap]):
-    """Function which normalized the mri images with the min max method"""
+    """
+    Function which normalize the mri images with the min max method
+    
+    Parameters
+    ----------
+    mri_imgs: list of images
+    
+    Returns
+    -------
+    list of normalized images
+    """
     for i in range(len(mri_imgs)):
         mri_imgs[i] -= np.min(mri_imgs[i])
         mri_imgs[i] /= np.max(mri_imgs[i])
@@ -280,7 +159,17 @@ def min_max_normalize(mri_imgs: List[np.memmap]):
 
 
 def mean_std_normalize(mri_imgs: List[np.memmap]):
-    """Function which normalized the mri images with the min max method"""
+    """
+    Function which normalize the mri images with  mean and standard dev
+      
+    Parameters
+    ----------
+    mri_imgs: list of images
+    
+    Returns
+    -------
+    list of normalized images
+    """
     mean = np.mean(mri_imgs)
     std = np.std(mri_imgs)
     mri_imgs = (mri_imgs - mean) / std
@@ -288,6 +177,18 @@ def mean_std_normalize(mri_imgs: List[np.memmap]):
 
 
 def check_mri_shapes(mri_imgs: list):
+    """
+    Checks all given shapes in image lists and prints them
+    
+    Parameters
+    ----------
+    mri_imgs: list of images
+    
+    Returns
+    -------
+    most common shape in list
+    
+    """
     from collections import Counter
 
     shape_cnt = Counter()
@@ -302,26 +203,21 @@ def check_mri_shapes(mri_imgs: list):
 
         print("%s: %7d" % (shape, count))
 
-    """
-    for i, mri_img in enumerate(mri_imgs):
-        if not shape:
-            shape = mri_img.shape
-            print("First MRI shape: " + str(mri_img.shape))
-        if mri_img.shape != shape:
-            print(
-                "Shape of MRI image "
-                + str(i)
-                + " has different shape "
-                + str(mri_img.shape)
-                + " (actual: "
-                + str(shape)
-                + ")"
-            )
-    """
+
     return literal_eval(most_common_shape)
 
-# +
+
 def is_int(val):
+    """
+    Check if val is int
+    Parameters
+    ----------
+    val: value to check type
+    
+    Returns
+    -------
+    True or False
+    """
     if type(val) == int:
         return True
     else:
@@ -329,11 +225,119 @@ def is_int(val):
             return True
         else:
             return False
+        
+def patch_list(data,patch_size):
+    """
+    Creates list of patch out of data
+    
+    Parameters
+    ----------
+    data: numpy.array
+        containing dataset of dimensions (size_of_set,height,width,depth),e.g. (75,139,139,120)
+    patch_size: int size of each patch
+    
+    Returns
+    -------
+    
+    list_patch: list
+        each element is one image of type numpy.array/torch.tensor with dimensions(n_classes,most_common_shape)
+        most_common_shape: e.g. (139,139,120)
+    """
+    list_patch = []
+
+    for n in range(len(data)):
+        patch = patch_creater(data[n],patch_size)
+        list_patch = list_patch+patch
+    
+
+    return list_patch
+
+def patch_creater(image, patch_size):
+    """
+    Creates overlapping patches from  preprocessed image, the number of patches is fixed to certain value
+    and the size can be changed as well.
+    
+    
+    ----------
+    image: numpy.array
+        image which will be sliced into patches
+    patch_size: tuple of int
+        size of the patch, equal in each direction
+   
+    Returns
+    -------
+    numpy.array  (n_patches,channels,patch_size,patch_size,patch_size)
+        list containing the patches
+
+    """
+    
+    dim = np.array(image.shape)# size of the image
+    
+    # calculates the number of patches for each dim, to cover all voxel at least once
+    #e.g for 139,139,120 with patch_size 64 the output would be (3,3,2)
+    n_patches = np.ceil(dim/patch_size).astype(int) 
+    
+    
+    # rest represents the entries which are overlapping with it's neighboring patch
+    rest  = n_patches * patch_size%dim ## calculates the remaining voxel which are going to overlap 
+
+    patches = []
+    for i in range(n_patches[0]):
+        
+        if i == n_patches[0]-1: ## only the last cube is an overlapped cube
+            start_x = i*patch_size-rest[0]## indices were to start and stop the slicing trough the image array
+            stop_x= (i+1)* patch_size-rest[0]
+              
+        else:    
+            start_x = i*patch_size
+            stop_x = (i+1)* patch_size
+
+        
+              
+        for j in range(n_patches[1]):
+            if j == n_patches[1]-1: ## only the last cube is an overlapped cube
+                start_y = j*patch_size-rest[1]
+                stop_y= (j+1)* patch_size-rest[1]
+              
+            else:    
+                start_y = j*patch_size
+                stop_y = (j+1)* patch_size
+            
+            for k in range(n_patches[2]):
+                if k == n_patches[2]-1: 
+                    start_z = k*patch_size-rest[2]
+                    stop_z = (k+1)* patch_size-rest[2]
+              
+                else:    
+                    start_z = k*patch_size
+                    stop_z = (k+1)* patch_size
+
+                # appending patches starting from indices 0,0,0 to dim
+                patches.append(image[start_x:stop_x,start_y:stop_y,start_z:stop_z])
+        
+    return patches
 
 
 def preprocess(
     env: aneurysm_utils.Environment, mri_imgs: list, preprocessing_params: dict
 ) -> list:
+    """
+    Preprocess images with given parameters of dictionary
+    
+    Parameters
+    ----------
+    env: environment in which to do the preprocessing
+    mri_imgs: list of 3d images
+    preprocessing_params: parameters for preprocessing in this form( not all entries have to be there):
+         {
+             resample_to_mni152: boolean, if given resample to mni 152
+             min_max_normalize: boolean, if true do min max normalize
+             mean_std_normalize: boolean, if true do mean std normalize
+             smooth_img: int or boolean, if true do smoothing if int do smoothing with this factor
+             intensity_segmentation: float, if given do intensity segmentation with this threshold
+             patch size:int, if given to deconstruct images in to patches with given size
+        }
+    """
     params = Dict(preprocessing_params)
     if params.resample_to_mni152:
         env.log.info("Preprocessing: Resample to MNI152...")
@@ -359,6 +363,9 @@ def preprocess(
     if params.get("intensity_segmentation"):
         env.log.info("Preprocessing: Intensity Segmentation...")
         mri_imgs = intensity_segmentation(mri_imgs, params.get("intensity_segmentation"))
-
+    if params.get("patch_size"):
+        patch_size = params.get("patch_size")
+        env.log.info(f"Preprocessing: Creating patches in the size of {patch_size}...")
+        mri_imgs = patch_list(mri_imgs, patch_size)
     return mri_imgs
 

@@ -8,9 +8,26 @@ from torch.utils.data import Dataset
 from torch_geometric.data import InMemoryDataset
 from aneurysm_utils.utils.point_cloud_utils import segmented_image_to_graph
 from aneurysm_utils.utils.ignite_utils import prepare_batch
+from aneurysm_utils.utils.point_cloud_utils import graph_to_image
 
-
-def predict(model, loader, cuda=False, apply_softmax=True, device=None):
+def predict(model, loader, cuda=False, apply_softmax=True, device=None,ispointnet=False,dimension=(256,256,220)):
+    """
+    Predict function which returns a list of tuple with output_class and output_probabilities
+    
+    Args:
+        model: trained model used for prediction
+        loader(pytorch dataloader) : loading batches of data
+        cuda: for using gpu
+        apply_softmax: if a softmax should be applied on the output neurons
+        device: which device is used
+        ispointnet: the model pointnet is used or not
+        dimension: Dimensions of the output arrays for the pointnet
+    
+    
+    
+    
+    """
+    
     predictions = []
     if device is None:
         device = "cuda" if cuda else "cpu"
@@ -34,6 +51,10 @@ def predict(model, loader, cuda=False, apply_softmax=True, device=None):
             except ValueError:
                 output_class = output.max(1)[1].data[0].cpu().numpy()
                 output_probability = output.max(1)[0].data[0].cpu().numpy()
+        if ispointnet:
+            outputgraph = model.output_graph
+            outputgraph.x=output_class
+            output_class = graph_to_image(outputgraph,dimension)
         predictions.append((output_class, output_probability))
     return predictions
 
@@ -128,51 +149,20 @@ class PytorchDataset(Dataset):
             plt.show()
 
 
-"""
-class PytorchgeometricDataset(Dataset_Geometric):
-    def __init__(self, mri_images, labels, root, save_dir, split="train", transform=None, pre_transform=None,forceprocessing =False):
-        self.forceprocessing = forceprocessing
-        self.save_dir = save_dir
-        self.mri_images = mri_images
-        self.labels = labels
-        super(PytorchgeometricDataset, self).__init__(root, transform, pre_transform)
-        
-    @property
-    def processed_file_names(self):
-        if os.path.exists(self.processed_dir) and not self.forceprocessing:
-            return ([file for file in os.listdir(self.processed_dir) if file.startswith("data")])
-        else:
-            return []
-    @property
-    def raw_file_names(self):
-        return os.listdir(self.root)
-    
-    @property
-    def processed_dir(self) -> str:
-        return self.save_dir
-
-    def process(self):
-
-        self.cases = set()
-        for idx, (image,label) in enumerate(zip(self.mri_images,self.labels)):
-            graph =segmented_image_to_graph(image,label)
-            torch.save(graph, os.path.join(self.save_dir, "data_{}_{}.pt".format(idx, split)))
-        self.forceprocessing=False     
-
-    def len(self):
-        return len(self.processed_file_names)
-
-    def get(self, idx):
-        try:
-            data = torch.load(os.path.join(self.processed_dir, 'data_{}.pt'.format(idx)))
-            return data
-        except:
-            print(f"Couldnt read data_{idx}.pt")
-            return None
-"""
 
 
 class PyTorchGeometricDataset(InMemoryDataset):
+    """
+    PyTorch Geometric dataset that consists of MRI images and labels.
+    Args:
+        root: dataset folder
+        mri_imgs (iterable of ndarries): The mri images.
+        labels (iterable): The labels for the images.
+        transform: Any transformations to apply to the images.
+    
+    """
+    
+    
     def __init__(
         self,
         root,  # env. dataset folder
@@ -190,6 +180,7 @@ class PyTorchGeometricDataset(InMemoryDataset):
         assert split in ["train", "test", "val"]
         super(InMemoryDataset, self).__init__(root, transform, pre_transform)
         path = os.path.join(self.processed_dir, f"{self.split}.pt")
+        print(path)
         self.data, self.slices = torch.load(path)
 
     @property
@@ -208,17 +199,17 @@ class PyTorchGeometricDataset(InMemoryDataset):
 
     def process(self):
         """ Transform numpy arrays into point clouds and stores them. """
+        if self.force_processing:
+            dataset = []
+            for idx, (image, label) in enumerate(zip(self.mri_images, self.labels)):
+                graph = segmented_image_to_graph(image, label)
 
-        dataset = []
-        for idx, (image, label) in enumerate(zip(self.mri_images, self.labels)):
-            graph = segmented_image_to_graph(image, label)
+                dataset.append(graph)
 
-            dataset.append(graph)
-
-        torch.save(
-            self.collate(dataset), os.path.join(self.processed_dir, f"{self.split}.pt")
-        )
-        del self.mri_images,self.labels
+            torch.save(
+                self.collate(dataset), os.path.join(self.processed_dir, f"{self.split}.pt")
+            )
+            del self.mri_images,self.labels
 
 # -------------------------- Samplers ---------------------------------
 
